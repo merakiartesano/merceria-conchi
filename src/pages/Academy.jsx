@@ -6,9 +6,10 @@ import { Video, Loader2, LogOut, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Academy = () => {
-    const { user, signOut, hasActiveSubscription } = useAuth();
+    const { user, signOut, hasActiveSubscription, refreshSubscription } = useAuth();
     const { t } = useLanguage();
     const navigate = useNavigate();
+    const [freshSubscription, setFreshSubscription] = useState(hasActiveSubscription);
 
     const [settings, setSettings] = useState(null);
     const [videos, setVideos] = useState([]);
@@ -26,6 +27,12 @@ const Academy = () => {
 
         const fetchAcademyData = async () => {
             try {
+                // Force refresh subscription to ensure accurate status
+                if (user) {
+                    const latestSub = await refreshSubscription();
+                    if (isMounted) setFreshSubscription(!!latestSub);
+                }
+
                 // Fetch settings for live class
                 const { data: settingsData, error: settingsError } = await supabase
                     .from('academy_settings')
@@ -65,9 +72,9 @@ const Academy = () => {
     const handleSignOut = async () => {
         try {
             await signOut();
-            // Allow the AuthContext listener to trigger the redirect naturally
         } catch (e) {
             console.error("Logout Error:", e);
+        } finally {
             navigate('/');
         }
     };
@@ -152,7 +159,7 @@ const Academy = () => {
                 )}
 
                 {/* Subscription Gateway (If Not Active) */}
-                {!hasActiveSubscription ? (
+                {!freshSubscription ? (
                     <div style={{ backgroundColor: '#fff', padding: '60px 40px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', textAlign: 'center', maxWidth: '700px', margin: '0 auto' }}>
                         <div style={{ width: '80px', height: '80px', backgroundColor: '#fff5f5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', color: '#fc8181' }}>
                             <Lock size={40} />

@@ -60,10 +60,23 @@ export const AuthProvider = ({ children }) => {
             }
 
             setSubscription(data || null);
+            return data;
         } catch (error) {
             console.error(error);
+            return null;
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSignOut = async () => {
+        try {
+            await supabase.auth.signOut();
+        } catch (err) {
+            console.error("Error in Supabase signOut, clearing local state anyway:", err);
+        } finally {
+            setUser(null);
+            setSubscription(null);
         }
     };
 
@@ -72,7 +85,11 @@ export const AuthProvider = ({ children }) => {
         subscription,
         loading,
         hasActiveSubscription: !!subscription,
-        signOut: () => supabase.auth.signOut(),
+        refreshSubscription: () => {
+            if (user) return fetchSubscription(user.id);
+            return Promise.resolve(null);
+        },
+        signOut: handleSignOut,
     };
 
     return (

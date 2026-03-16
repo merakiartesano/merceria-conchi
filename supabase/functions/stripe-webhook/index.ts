@@ -250,7 +250,7 @@ serve(async (req) => {
                 shipping_details: shippingDetails
               })
               .eq('id', existingSub.id)
-            if (error) throw error
+            if (error) console.error("Error updating subscription:", error)
           } else {
             // Insert new
             const { error } = await supabaseAdmin
@@ -262,16 +262,19 @@ serve(async (req) => {
                 status: 'active',
                 shipping_details: shippingDetails
               })
-            if (error) throw error
-
-            // Send welcome email for NEW subscriptions
-            const customerEmail = session.customer_details?.email
-            if (customerEmail) {
-              await sendEmail(
-                customerEmail,
-                '🧵 ¡Bienvenida a la Academia Meraki ArteSano!',
-                buildSubscriptionWelcomeEmail(customerEmail)
-              )
+            
+            if (error) {
+              console.error("Error inserting subscription:", error);
+            } else {
+              // Send welcome email for NEW subscriptions
+              const customerEmail = session.customer_details?.email
+              if (customerEmail) {
+                await sendEmail(
+                  customerEmail,
+                  '🧵 ¡Bienvenida a la Academia Meraki ArteSano!',
+                  buildSubscriptionWelcomeEmail(customerEmail)
+                )
+              }
             }
           }
         } else {
