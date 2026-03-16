@@ -11,6 +11,17 @@ const Admin = () => {
     const [loginError, setLoginError] = useState('');
     const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+    // Password Reset State
+    const [isResetting, setIsResetting] = useState(false);
+    const [resetEmail, setResetEmail] = useState('web.merakiartesano@gmail.com');
+    const [resetMessage, setResetMessage] = useState('');
+    const [resetError, setResetError] = useState('');
+    
+    // New Password State (after clicking recovery link)
+    const [isSettingNewPassword, setIsSettingNewPassword] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
     // Dashboard State
     const [activeTab, setActiveTab] = useState('inventory');
     const [products, setProducts] = useState([]);
@@ -61,6 +72,19 @@ const Admin = () => {
         description: ''
     });
 
+    useEffect(() => {
+        // Escuchamos por si venimos de un enlace de recuperación de contraseña
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                setIsSettingNewPassword(true);
+            }
+        });
+
+        return () => {
+            authListener.subscription.unsubscribe();
+        };
+    }, []);
+
     const handleLogin = async (e) => {
         e.preventDefault();
         setIsLoggingIn(true);
@@ -99,6 +123,44 @@ const Admin = () => {
         setIsAuthenticated(false);
         setProducts([]);
         setIsModalOpen(false);
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setResetMessage('');
+        setResetError('');
+        
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+                redirectTo: window.location.origin + '/admin',
+            });
+            if (error) throw error;
+            setResetMessage('Te hemos enviado un enlace de recuperación a tu correo.');
+        } catch (error) {
+            console.error("Reset password error:", error);
+            setResetError('No se pudo enviar el correo de recuperación.');
+        }
+    };
+
+    const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+        setIsUpdatingPassword(true);
+        setResetError('');
+        
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            
+            // Si funciona, contraseña actualizada y cerramos este modo
+            alert("¡Contraseña actualizada con éxito!");
+            setIsSettingNewPassword(false);
+            setNewPassword('');
+        } catch (error) {
+            console.error("Update password error:", error);
+            setResetError('Hubo un error al actualizar la contraseña.');
+        } finally {
+            setIsUpdatingPassword(false);
+        }
     };
 
     const fetchProducts = async () => {
@@ -399,57 +461,129 @@ const Admin = () => {
                         <p style={{ color: '#718096', fontSize: '1rem', margin: 0 }}>Zona privada de gestión</p>
                     </div>
 
-                    <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        <div style={{ textAlign: 'left' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Correo de Administrador</label>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                placeholder="tu@correo.com"
-                                required
-                                autoFocus
-                                style={{
-                                    width: '100%',
-                                    padding: '14px 18px',
-                                    border: '2px solid #e2e8f0',
-                                    borderRadius: '12px',
-                                    fontSize: '1.05rem',
-                                    transition: 'all 0.2s',
-                                    outline: 'none'
-                                }}
-                                onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-                                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                            />
-                        </div>
-                        <div style={{ textAlign: 'left' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Contraseña</label>
-                            <input
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Tu contraseña"
-                                required
-                                style={{
-                                    width: '100%',
-                                    padding: '14px 18px',
-                                    border: '2px solid #e2e8f0',
-                                    borderRadius: '12px',
-                                    fontSize: '1.05rem',
-                                    letterSpacing: '2px',
-                                    transition: 'all 0.2s',
-                                    outline: 'none'
-                                }}
-                                onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-                                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                            />
-                        </div>
-                        {loginError && <p style={{ color: '#e53e3e', fontSize: '0.9rem', margin: 0 }}>{loginError}</p>}
+                    {isSettingNewPassword ? (
+                        <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ textAlign: 'left' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Nueva Contraseña</label>
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Escribe tu nueva contraseña"
+                                    required
+                                    autoFocus
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 18px',
+                                        border: '2px solid #e2e8f0',
+                                        borderRadius: '12px',
+                                        fontSize: '1.05rem',
+                                        transition: 'all 0.2s',
+                                        outline: 'none'
+                                    }}
+                                    onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
+                                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+                            {resetError && <p style={{ color: '#e53e3e', fontSize: '0.9rem', margin: 0 }}>{resetError}</p>}
+                            <button type="submit" disabled={isUpdatingPassword} className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', borderRadius: '30px', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)' }}>
+                                {isUpdatingPassword ? <Loader className="animate-spin" size={20} style={{ margin: '0 auto' }} /> : 'Guardar Nueva Contraseña'}
+                            </button>
+                        </form>
+                    ) : isResetting ? (
+                        <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <p style={{ color: '#4a5568', fontSize: '0.95rem', margin: 0 }}>Introduce el correo administrador para enviarte un enlace de recuperación.</p>
+                            <div style={{ textAlign: 'left' }}>
+                                <input
+                                    type="email"
+                                    value={resetEmail}
+                                    onChange={(e) => setResetEmail(e.target.value)}
+                                    placeholder="web.merakiartesano@gmail.com"
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 18px',
+                                        border: '2px solid #e2e8f0',
+                                        borderRadius: '12px',
+                                        fontSize: '1.05rem',
+                                        transition: 'all 0.2s',
+                                        outline: 'none'
+                                    }}
+                                    onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
+                                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+                            {resetError && <p style={{ color: '#e53e3e', fontSize: '0.9rem', margin: 0 }}>{resetError}</p>}
+                            {resetMessage && <p style={{ color: '#065f46', fontSize: '0.9rem', margin: 0, padding: '10px', backgroundColor: '#d1fae5', borderRadius: '8px' }}>{resetMessage}</p>}
+                            
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', borderRadius: '30px' }}>
+                                Enviar Enlace
+                            </button>
+                            
+                            <button type="button" onClick={() => { setIsResetting(false); setResetError(''); setResetMessage(''); }} style={{ background: 'none', border: 'none', color: '#718096', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                Cancelar y volver
+                            </button>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <div style={{ textAlign: 'left' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Correo de Administrador</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="tu@correo.com"
+                                    required
+                                    autoFocus
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 18px',
+                                        border: '2px solid #e2e8f0',
+                                        borderRadius: '12px',
+                                        fontSize: '1.05rem',
+                                        transition: 'all 0.2s',
+                                        outline: 'none'
+                                    }}
+                                    onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
+                                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+                            <div style={{ textAlign: 'left' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Contraseña</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Tu contraseña"
+                                    required
+                                    style={{
+                                        width: '100%',
+                                        padding: '14px 18px',
+                                        border: '2px solid #e2e8f0',
+                                        borderRadius: '12px',
+                                        fontSize: '1.05rem',
+                                        letterSpacing: '2px',
+                                        transition: 'all 0.2s',
+                                        outline: 'none'
+                                    }}
+                                    onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
+                                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                                />
+                            </div>
+                            
+                            <div style={{ textAlign: 'right' }}>
+                                <button type="button" onClick={() => setIsResetting(true)} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }}>
+                                    ¿Olvidaste tu contraseña?
+                                </button>
+                            </div>
 
-                        <button type="submit" disabled={isLoggingIn} className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', borderRadius: '30px', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)', marginTop: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-                            {isLoggingIn ? <Loader className="animate-spin" size={20} /> : <><Lock size={20} /> Entrar al Panel</>}
-                        </button>
-                    </form>
+                            {loginError && <p style={{ color: '#e53e3e', fontSize: '0.9rem', margin: 0 }}>{loginError}</p>}
+
+                            <button type="submit" disabled={isLoggingIn} className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', borderRadius: '30px', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)', marginTop: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                                {isLoggingIn ? <Loader className="animate-spin" size={20} /> : <><Lock size={20} /> Entrar al Panel</>}
+                            </button>
+                        </form>
+                    )}
 
                     <div style={{ marginTop: '25px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
                         <a href="/" style={{ color: '#718096', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem', textDecoration: 'none', transition: 'color 0.2s' }}
