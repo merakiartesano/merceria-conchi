@@ -136,7 +136,7 @@ const Academy = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '50px', flexWrap: 'wrap', gap: '20px' }}>
                     <div>
                         <h1 style={{ color: 'var(--color-primary)', fontSize: '2.8rem', marginBottom: '8px', fontFamily: 'var(--font-serif)' }}>{t('academy.title')}</h1>
-                        <p style={{ color: '#718096', fontSize: '1.1rem' }}>{t('academy.welcome')} <span style={{ color: '#4a5568', fontWeight: '500' }}>{user?.email}</span></p>
+                        <p style={{ color: '#718096', fontSize: '1.1rem' }}>{t('academy.welcome')} <span style={{ color: '#4a5568', fontWeight: '500' }}>{user?.user_metadata?.first_name || user?.email}</span></p>
                     </div>
                     <div style={{ display: 'flex', gap: '15px' }}>
                         <button onClick={handleManageSubscription} disabled={managingSub} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#e2e8f0', color: '#4a5568', borderRadius: '30px', padding: '10px 25px', fontWeight: '600' }}>
