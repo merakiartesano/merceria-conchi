@@ -58,7 +58,18 @@ export const createSubscriptionCheckoutSession = async (user, shippingData, pric
 
         if (error) {
             console.error("Supabase edge function error object:", error);
-            throw new Error("No se pudo iniciar la suscripción.");
+            let errorMessage = "No se pudo iniciar la suscripción.";
+            if (error.context) {
+                try {
+                    const errorText = await error.context.text();
+                    console.error("Raw Edge Function response:", errorText);
+                    const parsed = JSON.parse(errorText);
+                    if (parsed.error) errorMessage = parsed.error;
+                } catch (e) {
+                    // Ignore parse errors
+                }
+            }
+            throw new Error(errorMessage);
         }
 
         return { sessionId: data.sessionId, url: data.url };
