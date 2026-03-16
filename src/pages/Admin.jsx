@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Users, Settings, LogOut, Plus, Edit2, Trash2, Lock, X, Upload, Save, Loader, ShoppingBag, Truck } from 'lucide-react';
 import { getProducts, createProduct, deleteProduct, updateProduct, uploadImage, getOrders, updateOrderStatus, getAcademySettings, updateAcademySettings, getSubscribers, getAcademyVideos, createAcademyVideo, updateAcademyVideo, deleteAcademyVideo, getShippingZones, updateShippingZone, triggerClassReminder } from '../lib/productService';
+import { supabase } from '../lib/supabase';
 
 const Admin = () => {
     // Authentication State
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [pin, setPin] = useState('');
-    const [loginError, setLoginError] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
 
     // Dashboard State
     const [activeTab, setActiveTab] = useState('inventory');
@@ -58,24 +61,41 @@ const Admin = () => {
         description: ''
     });
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (pin === 'meraki2026') {
+        setIsLoggingIn(true);
+        setLoginError('');
+        
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
+
+            if (error) throw error;
+
+            if (data.user?.email !== 'web.merakiartesano@gmail.com') {
+                await supabase.auth.signOut();
+                throw new Error('Acceso denegado: No tienes permisos de administrador.');
+            }
+
             setIsAuthenticated(true);
-            setLoginError(false);
             fetchProducts();
             fetchOrders();
             fetchAcademy();
             fetchSubscribersData();
             fetchVideosData();
             fetchShippingZonesData();
-        } else {
-            setLoginError(true);
-            setPin('');
+        } catch (error) {
+            console.error("Login error:", error);
+            setLoginError(error.message === 'Invalid login credentials' ? 'Credenciales incorrectas.' : error.message);
+        } finally {
+            setIsLoggingIn(false);
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
         setIsAuthenticated(false);
         setProducts([]);
         setIsModalOpen(false);
@@ -381,21 +401,20 @@ const Admin = () => {
 
                     <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                         <div style={{ textAlign: 'left' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Código de Acceso Mágico</label>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Correo de Administrador</label>
                             <input
-                                type="password"
-                                value={pin}
-                                onChange={(e) => setPin(e.target.value)}
-                                placeholder="Introduce el PIN"
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="tu@correo.com"
+                                required
                                 autoFocus
                                 style={{
                                     width: '100%',
                                     padding: '14px 18px',
                                     border: '2px solid #e2e8f0',
                                     borderRadius: '12px',
-                                    fontSize: '1.2rem',
-                                    letterSpacing: '4px',
-                                    textAlign: 'center',
+                                    fontSize: '1.05rem',
                                     transition: 'all 0.2s',
                                     outline: 'none'
                                 }}
@@ -403,10 +422,32 @@ const Admin = () => {
                                 onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                             />
                         </div>
-                        {loginError && <p style={{ color: '#e53e3e', fontSize: '0.9rem', margin: 0 }}>Código incorrecto. Inténtalo de nuevo.</p>}
+                        <div style={{ textAlign: 'left' }}>
+                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.9rem', color: '#4a5568', fontWeight: '500' }}>Contraseña</label>
+                            <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Tu contraseña"
+                                required
+                                style={{
+                                    width: '100%',
+                                    padding: '14px 18px',
+                                    border: '2px solid #e2e8f0',
+                                    borderRadius: '12px',
+                                    fontSize: '1.05rem',
+                                    letterSpacing: '2px',
+                                    transition: 'all 0.2s',
+                                    outline: 'none'
+                                }}
+                                onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
+                                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
+                            />
+                        </div>
+                        {loginError && <p style={{ color: '#e53e3e', fontSize: '0.9rem', margin: 0 }}>{loginError}</p>}
 
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', borderRadius: '30px', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)', marginTop: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
-                            <Lock size={20} /> Entrar al Panel
+                        <button type="submit" disabled={isLoggingIn} className="btn btn-primary" style={{ width: '100%', padding: '16px', fontSize: '1.1rem', borderRadius: '30px', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.4)', marginTop: '10px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                            {isLoggingIn ? <Loader className="animate-spin" size={20} /> : <><Lock size={20} /> Entrar al Panel</>}
                         </button>
                     </form>
 

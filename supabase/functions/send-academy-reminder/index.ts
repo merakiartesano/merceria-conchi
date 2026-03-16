@@ -37,6 +37,13 @@ serve(async (req) => {
       })
     }
 
+    if (user.email !== 'web.merakiartesano@gmail.com') {
+      return new Response(JSON.stringify({ error: 'Acceso denegado: No tienes permisos de administrador.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     // 3. Fetch Academy Settings (Live Title and Link)
     const { data: settings, error: settingsError } = await supabaseAdmin
       .from('academy_settings')
