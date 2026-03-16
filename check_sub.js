@@ -1,15 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
-dotenv.config();
+dotenv.config({ path: './.env' });
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.VITE_SUPABASE_ANON_KEY
-);
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
 
-async function checkSub() {
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function checkSubs() {
   const { data, error } = await supabase.from('subscriptions').select('*');
-  console.log("Subscriptions:", data, error);
+  if (error) {
+    console.error('Error:', error);
+  } else {
+    console.log('Subscriptions:', data);
+  }
 }
 
-checkSub();
+checkSubs();

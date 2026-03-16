@@ -220,6 +220,17 @@ serve(async (req) => {
         }
 
         if (userId) {
+          // Extract shipping details from metadata if present
+          const shippingDetails = session.metadata ? {
+            name: session.metadata.shipping_name,
+            phone: session.metadata.shipping_phone,
+            line1: session.metadata.shipping_line1,
+            city: session.metadata.shipping_city,
+            state: session.metadata.shipping_state,
+            postal_code: session.metadata.shipping_postal_code,
+            country: session.metadata.shipping_country,
+          } : null
+
           // First check if a subscription exists for this user
           const { data: existingSub } = await supabaseAdmin
             .from('subscriptions')
@@ -235,7 +246,8 @@ serve(async (req) => {
               .update({
                 stripe_customer_id: session.customer as string,
                 stripe_subscription_id: session.subscription as string,
-                status: 'active'
+                status: 'active',
+                shipping_details: shippingDetails
               })
               .eq('id', existingSub.id)
             if (error) throw error
@@ -247,7 +259,8 @@ serve(async (req) => {
                 user_id: userId,
                 stripe_customer_id: session.customer as string,
                 stripe_subscription_id: session.subscription as string,
-                status: 'active'
+                status: 'active',
+                shipping_details: shippingDetails
               })
             if (error) throw error
 

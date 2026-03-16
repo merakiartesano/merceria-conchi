@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
-import { createCheckoutSession, getStripe } from '../lib/stripeService';
+import { createCheckoutSession, createSubscriptionCheckoutSession, getStripe } from '../lib/stripeService';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { spanishProvinces, validateSpanishPhone } from '../lib/validations';
 import { getShippingZones } from '../lib/productService';
 
 const Checkout = () => {
     const { cartItems, getCartTotal } = useCart();
     const navigate = useNavigate();
+    const location = useLocation();
     const { t } = useLanguage();
+    const { user } = useAuth();
+
+    const isSubscription = location.search.includes('type=subscription') || location.state?.isSubscription;
+    const subscriptionPrice = location.state?.price || 32;
 
     const [formData, setFormData] = useState({
         name: '',
@@ -75,10 +81,10 @@ const Checkout = () => {
         }
     }
 
-    const shippingCost = computedShippingCost;
-    const total = subtotal + (isZoneBlocked ? 0 : shippingCost);
+    const shippingCost = isSubscription ? 0 : computedShippingCost; // Subscription usually includes shipping or fixed price
+    const total = isSubscription ? subscriptionPrice : (subtotal + (isZoneBlocked ? 0 : shippingCost));
 
-    if (cartItems.length === 0) {
+    if (cartItems.length === 0 && !isSubscription) {
         return (
             <div className="checkout-page" style={{ padding: '120px 20px', textAlign: 'center' }}>
                 <h2>{t('checkout.emptyTitle')}</h2>
@@ -168,59 +174,80 @@ const Checkout = () => {
         }
 
         try {
-            // 1. Save order to Supabase
-            const { data: orderData, error: orderError } = await supabase
-                .from('orders')
-                .insert([{
-                    customer_name: formData.name,
-                    customer_email: formData.email,
-                    customer_phone: formData.phone,
-                    shipping_address: {
-                        line1: formData.line1,
-                        city: formData.city,
-                        state: formData.state,
-                        postal_code: formData.postal_code,
-                        country: formData.country
-                    },
-                    status: 'Pendiente',
-                    total_amount: total
-                }])
-                .select()
-                .single();
+            if (isSubscription) {
+                // SUBSCRIPTION FLOW
+                const shippingData = {
+                    name: formData.name,
+                    phone: formData.phone,
+                    line1: formData.line1,
+                    city: formData.city,
+                    state: formData.state,
+                    postal_code: formData.postal_code,
+                    country: formData.country,
+                };
 
-            if (orderError) throw orderError;
-
-            // 2. Save order items
-            const orderItemsData = cartItems.map(item => ({
-                order_id: orderData.id,
-                product_id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity
-            }));
-
-            const { error: itemsError } = await supabase
-                .from('order_items')
-                .insert(orderItemsData);
-
-            if (itemsError) throw itemsError;
-
-            // 3. Create Stripe Session (pass shipping so it shows in Stripe)
-            const { sessionId, url } = await createCheckoutSession(cartItems, orderData.id, shippingCost, zoneName);
-
-            // 4. Update order with Stripe session ID
-            await supabase
-                .from('orders')
-                .update({ stripe_session_id: sessionId })
-                .eq('id', orderData.id);
-
-            // 5. Redirect to Stripe
-            if (url) {
-                window.location.href = url;
+                const { url } = await createSubscriptionCheckoutSession(user, shippingData, subscriptionPrice);
+                
+                if (url) {
+                    window.location.href = url;
+                } else {
+                    throw new Error("No redirect URL received for subscription");
+                }
             } else {
-                throw new Error("No redirect URL received");
-            }
+                // STANDARD ORDER FLOW
+                // 1. Save order to Supabase
+                const { data: orderData, error: orderError } = await supabase
+                    .from('orders')
+                    .insert([{
+                        customer_name: formData.name,
+                        customer_email: formData.email,
+                        customer_phone: formData.phone,
+                        shipping_address: {
+                            line1: formData.line1,
+                            city: formData.city,
+                            state: formData.state,
+                            postal_code: formData.postal_code,
+                            country: formData.country
+                        },
+                        status: 'Pendiente',
+                        total_amount: total
+                    }])
+                    .select()
+                    .single();
 
+                if (orderError) throw orderError;
+
+                // 2. Save order items
+                const orderItemsData = cartItems.map(item => ({
+                    order_id: orderData.id,
+                    product_id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    quantity: item.quantity
+                }));
+
+                const { error: itemsError } = await supabase
+                    .from('order_items')
+                    .insert(orderItemsData);
+
+                if (itemsError) throw itemsError;
+
+                // 3. Create Stripe Session (pass shipping so it shows in Stripe)
+                const { sessionId, url } = await createCheckoutSession(cartItems, orderData.id, shippingCost, zoneName);
+
+                // 4. Update order with Stripe session ID
+                await supabase
+                    .from('orders')
+                    .update({ stripe_session_id: sessionId })
+                    .eq('id', orderData.id);
+
+                // 5. Redirect to Stripe
+                if (url) {
+                    window.location.href = url;
+                } else {
+                    throw new Error("No redirect URL received");
+                }
+            }
         } catch (err) {
             console.error("Error in checkout:", err);
             setError(t('checkout.error'));
@@ -337,30 +364,51 @@ const Checkout = () => {
                         <h2 style={{ marginBottom: '20px', fontSize: '1.5rem', color: '#1a1a1a' }}>{t('checkout.step2')}</h2>
 
                         <div style={{ marginBottom: '20px', maxHeight: '300px', overflowY: 'auto' }}>
-                            {cartItems.map((item, idx) => (
-                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #e2e8f0' }}>
+                            {isSubscription ? (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #e2e8f0' }}>
                                     <div style={{ display: 'flex', gap: '15px' }}>
-                                        <div style={{ width: '50px', height: '50px', borderRadius: '8px', backgroundImage: `url(${item.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                                        <div style={{ width: '50px', height: '50px', borderRadius: '8px', backgroundColor: '#fff5f8', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                                            <Sparkles size={24} />
+                                        </div>
                                         <div>
-                                            <h4 style={{ margin: '0 0 5px 0', fontSize: '0.95rem' }}>{item.name}</h4>
-                                            <p style={{ margin: '0', fontSize: '0.85rem', color: '#718096' }}>{t('checkout.qty')} {item.quantity}</p>
+                                            <h4 style={{ margin: '0 0 5px 0', fontSize: '0.95rem' }}>Club Meraki ArteSano</h4>
+                                            <p style={{ margin: '0', fontSize: '0.85rem', color: '#718096' }}>Suscripción Mensual</p>
                                         </div>
                                     </div>
                                     <div style={{ fontWeight: '500' }}>
-                                        €{(item.price * item.quantity).toFixed(2)}
+                                        €{subscriptionPrice.toFixed(2)}
                                     </div>
                                 </div>
-                            ))}
+                            ) : (
+                                cartItems.map((item, idx) => (
+                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', paddingBottom: '15px', borderBottom: '1px solid #e2e8f0' }}>
+                                        <div style={{ display: 'flex', gap: '15px' }}>
+                                            <div style={{ width: '50px', height: '50px', borderRadius: '8px', backgroundImage: `url(${item.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
+                                            <div>
+                                                <h4 style={{ margin: '0 0 5px 0', fontSize: '0.95rem' }}>{item.name}</h4>
+                                                <p style={{ margin: '0', fontSize: '0.85rem', color: '#718096' }}>{t('checkout.qty')} {item.quantity}</p>
+                                            </div>
+                                        </div>
+                                        <div style={{ fontWeight: '500' }}>
+                                            €{(item.price * item.quantity).toFixed(2)}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#4a5568' }}>
-                            <span>{t('checkout.subtotal')}</span>
-                            <span>€{subtotal.toFixed(2)}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', color: '#4a5568' }}>
-                            <span>{zoneName}</span>
-                            <span>{isZoneBlocked ? <strong style={{ color: '#e53e3e' }}>No Disponible</strong> : shippingCost === 0 ? <strong style={{ color: 'var(--color-primary)' }}>{t('checkout.free')}</strong> : `€${shippingCost.toFixed(2)}`}</span>
-                        </div>
+                        {!isSubscription && (
+                            <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#4a5568' }}>
+                                    <span>{t('checkout.subtotal')}</span>
+                                    <span>€{subtotal.toFixed(2)}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', color: '#4a5568' }}>
+                                    <span>{zoneName}</span>
+                                    <span>{isZoneBlocked ? <strong style={{ color: '#e53e3e' }}>No Disponible</strong> : shippingCost === 0 ? <strong style={{ color: 'var(--color-primary)' }}>{t('checkout.free')}</strong> : `€${shippingCost.toFixed(2)}`}</span>
+                                </div>
+                            </>
+                        )}
                         <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '20px', borderTop: '2px solid #e2e8f0', fontSize: '1.2rem', fontWeight: 'bold', color: '#1a1a1a' }}>
                             <span>{t('checkout.total')}</span>
                             <span>€{total.toFixed(2)}</span>

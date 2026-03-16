@@ -255,43 +255,35 @@ export const deleteAcademyVideo = async (id) => {
 
 // Helper function: get subscribers list
 export const getSubscribers = async () => {
-    // 1. Obtener todas las usuarias
-    const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select(`
-            id,
-            email,
-            first_name,
-            last_name,
-            phone,
-            created_at
-        `)
-        .order('created_at', { ascending: false });
-
-    if (profilesError) throw profilesError;
-
-    // 2. Obtener todas las suscripciones
-    const { data: subscriptions, error: subsError } = await supabase
-        .from('subscriptions')
-        .select(`
-            user_id,
-            status,
-            stripe_customer_id,
-            current_period_end
-        `);
-
-    if (subsError) throw subsError;
-
-    // 3. Unir los datos en memoria para evitar errores de clave foránea en Supabase
-    const mergedData = profiles.map(profile => {
-        const userSubs = subscriptions.filter(sub => sub.user_id === profile.id);
-        return {
-            ...profile,
-            subscriptions: userSubs
-        };
+    // 1. Llamar a la función segura (RPC) en Supabase pasando el PIN
+    const { data: result, error } = await supabase.rpc('get_admin_subscribers', {
+        admin_pin: 'meraki2026'
     });
 
-    return mergedData;
+    if (error) {
+        console.error("RPC Error:", error);
+        throw error;
+    }
+    
+    if (!result) return [];
+
+    // 2. Mapear el resultado al formato de array 'subscriptions' que usa Admin.jsx
+    return result.map(u => ({
+        id: u.id,
+        email: u.email,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        phone: u.phone,
+        created_at: u.created_at,
+        subscriptions: [
+            {
+                status: u.status || 'inactive',
+                stripe_customer_id: u.stripe_customer_id || null,
+                current_period_end: u.current_period_end || null,
+                shipping_details: u.shipping_details || null
+            }
+        ]
+    }));
 };
 
 // --- SHIPPING ZONES HELPER FUNCTIONS ---

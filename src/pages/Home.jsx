@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { getProducts } from '../lib/productService';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
-import { ArrowRight, Star, Scissors, Heart, BookOpen, ShoppingCart } from 'lucide-react';
+import { ArrowRight, Star, Scissors, Heart, BookOpen, ShoppingCart, MapPin, Phone, Mail, Instagram, Facebook } from 'lucide-react';
 
 const Home = () => {
     const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -53,10 +53,10 @@ const Home = () => {
                 </div>
 
                 <div className="hero-visual">
-                    <div className="polaroid-wrapper">
-                        <div className="polaroid photo-1" style={{ backgroundImage: 'url(/hero1.jpg)' }}></div>
-                        <div className="polaroid photo-2" style={{ backgroundImage: 'url(/hero2.jpg)' }}></div>
-                        <div className="polaroid photo-3" style={{ backgroundImage: 'url(/hero3.jpg)' }}></div>
+                    <div className="hero-collage">
+                        <div className="collage-img main-img" style={{ backgroundImage: 'url(/hero2.jpg)' }}></div>
+                        <div className="collage-img sub-img-1" style={{ backgroundImage: 'url(/hero3.jpg)' }}></div>
+                        <div className="collage-img sub-img-2" style={{ backgroundImage: 'url(/hero1.jpg)' }}></div>
                     </div>
                 </div>
             </section>
@@ -88,22 +88,34 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* --- ABOUT SECTION --- */}
-            <section className="about-section">
-                <div className="about-grid">
-                    <div className="about-image">
-                        <img src="/about.png" alt="Taller de Crochet de Meraki ArteSano" />
-                        <div className="experience-badge">
-                            <span className="years">{t('about.badge.years')}</span>
-                            <span className="text" dangerouslySetInnerHTML={{ __html: t('about.badge.text').replace(' ', '<br />') }}></span>
+            {/* --- CLUB MERAKI BANNER (CALL TO ACTION) --- */}
+            <section className="club-meraki-cta">
+                <div className="club-meraki-container">
+                    <div className="club-meraki-image" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1605372333423-ed8e8095b369?q=80&w=1000&auto=format&fit=crop)' }}></div>
+                    <div className="club-meraki-content">
+                        <div className="club-meraki-badge">
+                            {t('cta.badge') || "★ CLUB MERAKI ARTESANO"}
                         </div>
-                    </div>
-                    <div className="about-content">
-                        <h2>{t('about.title')}</h2>
-                        <p className="lead-paragraph">{t('about.p1')}</p>
-                        <p>{t('about.p2')}</p>
-                        <p>{t('about.p3')}</p>
-                        <p style={{ fontStyle: 'italic', marginTop: '1rem', color: 'var(--color-primary)' }}>{t('about.quote')}</p>
+                        <h2 className="club-meraki-title">{t('cta.title')}</h2>
+                        <p className="club-meraki-desc">{t('cta.desc')}</p>
+                        <Link to="/clases" className="btn" style={{ 
+                            backgroundColor: 'var(--color-accent)', 
+                            color: 'white', 
+                            padding: '16px 36px', 
+                            fontSize: '1.1rem', 
+                            fontWeight: 'bold', 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '10px', 
+                            borderRadius: '50px', 
+                            boxShadow: '0 8px 20px rgba(255, 153, 0, 0.3)', 
+                            transition: 'all 0.3s', 
+                            textDecoration: 'none' 
+                        }} 
+                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 12px 25px rgba(255, 153, 0, 0.4)'; }} 
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(255, 153, 0, 0.3)'; }}>
+                            {t('cta.btn')} <ArrowRight size={20} />
+                        </Link>
                     </div>
                 </div>
             </section>
@@ -146,17 +158,81 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* --- CLASSES BANNER (CALL TO ACTION) --- */}
-            <section className="classes-cta">
-                <div className="classes-cta-container">
-                    <div className="classes-cta-content">
-                        <h2>{t('cta.title')}</h2>
-                        <p>{t('cta.desc')}</p>
-                        <Link to="/clases" className="btn btn-primary" style={{ backgroundColor: 'white', color: 'var(--color-primary)' }}>
-                            {t('cta.btn')}
-                        </Link>
+            {/* --- ABOUT SECTION --- */}
+            <section className="about-section">
+                <div className="about-grid">
+                    <div className="about-image">
+                        <img src="/about.png" alt="Taller de Crochet de Meraki ArteSano" />
+                        <div className="experience-badge">
+                            <span className="years">{t('about.badge.years')}</span>
+                            <span className="text" dangerouslySetInnerHTML={{ __html: t('about.badge.text').replace(' ', '<br />') }}></span>
+                        </div>
                     </div>
-                    <div className="classes-cta-image" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1628102491629-77858c630128?q=80&w=800&auto=format&fit=crop)' }}></div>
+                    <div className="about-content">
+                        <h2>{t('about.title')}</h2>
+                        <p className="lead-paragraph">{t('about.p1')}</p>
+                        <p>{t('about.p2')}</p>
+                        <p>{t('about.p3')}</p>
+                        <p style={{ fontStyle: 'italic', marginTop: '1rem', color: 'var(--color-primary)' }}>{t('about.quote')}</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- CONTACT SECTION --- */}
+            <section className="contact-preview section-padding" style={{ backgroundColor: '#fdfaj7', borderTop: '1px solid rgba(139, 94, 131, 0.1)' }}>
+                <div className="container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '0 24px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '50px' }}>
+                        <h2 style={{ fontSize: '3rem', marginBottom: '15px', color: 'var(--color-heading)', fontFamily: 'var(--font-heading)' }}>{t('contact.title')}</h2>
+                        <p style={{ fontSize: '1.2rem', color: 'var(--color-text-light)', maxWidth: '700px', margin: '0 auto' }}>
+                            {t('contact.subtitle')}
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
+                        
+                        <div className="contact-card" style={{ backgroundColor: 'white', padding: '40px 30px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', textAlign: 'center', transition: 'transform 0.3s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                            <div style={{ width: '60px', height: '60px', backgroundColor: 'var(--color-primary-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: 'var(--color-primary)' }}>
+                                <MapPin size={28} />
+                            </div>
+                            <h3 style={{ marginBottom: '10px', fontSize: '1.5rem', fontFamily: 'var(--font-heading)' }}>{t('contact.shop')}</h3>
+                            <p style={{ color: 'var(--color-text-light)', lineHeight: '1.8' }}>
+                                C/ San Antonio, 5<br />
+                                Yecla, 30510<br />
+                                Murcia
+                            </p>
+                        </div>
+
+                        <div className="contact-card" style={{ backgroundColor: 'white', padding: '40px 30px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', textAlign: 'center', transition: 'transform 0.3s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                            <div style={{ width: '60px', height: '60px', backgroundColor: 'var(--color-primary-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: 'var(--color-primary)' }}>
+                                <Phone size={28} />
+                            </div>
+                            <h3 style={{ marginBottom: '10px', fontSize: '1.5rem', fontFamily: 'var(--font-heading)' }}>{t('contact.call')}</h3>
+                            <p style={{ color: 'var(--color-text-light)', marginBottom: '15px' }}>{t('contact.callDesc')}</p>
+                            <a href="tel:605889938" style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--color-text)', textDecoration: 'none' }}>605 88 99 38</a>
+                        </div>
+
+                        <div className="contact-card" style={{ backgroundColor: 'white', padding: '40px 30px', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', textAlign: 'center', transition: 'transform 0.3s', cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}>
+                            <div style={{ width: '60px', height: '60px', backgroundColor: 'var(--color-primary-light)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', color: 'var(--color-primary)' }}>
+                                <Mail size={28} />
+                            </div>
+                            <h3 style={{ marginBottom: '10px', fontSize: '1.5rem', fontFamily: 'var(--font-heading)' }}>{t('contact.write')}</h3>
+                            <p style={{ color: 'var(--color-text-light)', marginBottom: '15px' }}>{t('contact.writeDesc')}</p>
+                            <a href="mailto:hola@merakiartesano.es" style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--color-primary)', textDecoration: 'none' }}>hola@merakiartesano.es</a>
+                        </div>
+                        
+                    </div>
+
+                    <div style={{ marginTop: '60px', textAlign: 'center' }}>
+                        <h3 style={{ marginBottom: '25px', fontSize: '1.8rem', fontFamily: 'var(--font-heading)' }}>{t('contact.social')}</h3>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
+                            <a href="https://www.instagram.com/merakiartesanoyecla/" target="_blank" rel="noopener noreferrer" className="social-btn" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 28px', backgroundColor: '#E1306C', color: 'white', borderRadius: 'var(--radius-full)', fontWeight: 'bold', textDecoration: 'none', transition: 'transform 0.3s', boxShadow: '0 4px 15px rgba(225, 48, 108, 0.3)' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                                <Instagram size={22} /> Instagram
+                            </a>
+                            <a href="https://www.facebook.com/merakiartesanoyecla" target="_blank" rel="noopener noreferrer" className="social-btn" style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 28px', backgroundColor: '#1877F2', color: 'white', borderRadius: 'var(--radius-full)', fontWeight: 'bold', textDecoration: 'none', transition: 'transform 0.3s', boxShadow: '0 4px 15px rgba(24, 119, 242, 0.3)' }} onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'} onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}>
+                                <Facebook size={22} /> Facebook
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </section>
         </div>

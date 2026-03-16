@@ -40,6 +40,8 @@ const Admin = () => {
     const [editingProduct, setEditingProduct] = useState(null);
     const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
     const [editingVideo, setEditingVideo] = useState(null);
+    const [selectedSubShipping, setSelectedSubShipping] = useState(null);
+    const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
     const [videoFormData, setVideoFormData] = useState({
         title: '',
         description: '',
@@ -846,15 +848,16 @@ const Admin = () => {
                                             <th>Teléfono</th>
                                             <th>Estado</th>
                                             <th>Fin Periodo</th>
+                                            <th>Envío</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {subscribersLoading ? (
-                                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '3rem' }}>
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem' }}>
                                                 <Loader className="animate-spin" size={28} style={{ display: 'inline-block', color: 'var(--color-primary)' }} />
                                             </td></tr>
                                         ) : subscribers.length === 0 ? (
-                                            <tr><td colSpan="5" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                                 <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🧵</div>
                                                 <p style={{ margin: 0 }}>Todavía no hay alumnas registradas.</p>
                                                 <p style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>Cuando alguien se registre aparecerá aquí.</p>
@@ -880,6 +883,20 @@ const Admin = () => {
                                                         </td>
                                                         <td style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
                                                             {sub?.current_period_end ? new Date(sub.current_period_end * 1000).toLocaleDateString('es-ES') : '—'}
+                                                        </td>
+                                                        <td>
+                                                            {sub?.shipping_details ? (
+                                                                <button 
+                                                                    onClick={() => { setSelectedSubShipping(sub.shipping_details); setIsShippingModalOpen(true); }}
+                                                                    className="btn-icon-small" 
+                                                                    style={{ color: 'var(--color-primary)', backgroundColor: 'var(--color-primary-light)' }} 
+                                                                    title="Ver Dirección de Envío"
+                                                                >
+                                                                    <Truck size={18} />
+                                                                </button>
+                                                            ) : (
+                                                                <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>No disp.</span>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 );
@@ -1145,6 +1162,40 @@ const Admin = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+            {/* --- MODAL DIRECCIÓN DE ENVÍO SUSCRIPCIÓN --- */}
+            {isShippingModalOpen && selectedSubShipping && (
+                <div className="admin-modal-overlay">
+                    <div className="admin-modal" style={{ maxWidth: '500px' }}>
+                        <div className="modal-header">
+                            <h3><Truck size={20} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> Datos de Envío (Kit Sorpresa)</h3>
+                            <button onClick={() => setIsShippingModalOpen(false)} className="btn-icon-small"><X size={20} /></button>
+                        </div>
+                        <div className="modal-body">
+                            <div style={{ backgroundColor: '#f8fafc', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Destinataria</label>
+                                    <div style={{ fontSize: '1.1rem', color: '#1e293b', fontWeight: '500' }}>{selectedSubShipping.name}</div>
+                                </div>
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Teléfono de Contacto</label>
+                                    <div style={{ fontSize: '1.1rem', color: '#1e293b' }}>{selectedSubShipping.phone}</div>
+                                </div>
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Dirección de Entrega</label>
+                                    <div style={{ fontSize: '1.1rem', color: '#1e293b', lineHeight: '1.5' }}>
+                                        {selectedSubShipping.line1}<br />
+                                        {selectedSubShipping.postal_code} {selectedSubShipping.city}<br />
+                                        {selectedSubShipping.state}, {selectedSubShipping.country}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                                <button onClick={() => setIsShippingModalOpen(false)} className="btn btn-primary" style={{ width: '100%' }}>Cerrar Detalles</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

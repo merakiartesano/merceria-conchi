@@ -43,3 +43,27 @@ export const createCheckoutSession = async (cartItems, orderId = null, shippingC
         throw err;
     }
 };
+
+export const createSubscriptionCheckoutSession = async (user, shippingData, price = 32) => {
+    try {
+        // Call the Edge Function "create-subscription-checkout"
+        const { data, error } = await supabase.functions.invoke('create-subscription-checkout', {
+            body: { 
+                userId: user.id,
+                userEmail: user.email,
+                shippingAddress: shippingData,
+                price: price
+            }
+        });
+
+        if (error) {
+            console.error("Supabase edge function error object:", error);
+            throw new Error("No se pudo iniciar la suscripción.");
+        }
+
+        return { sessionId: data.sessionId, url: data.url };
+    } catch (err) {
+        console.error("Subscription checkout error:", err);
+        throw err;
+    }
+};

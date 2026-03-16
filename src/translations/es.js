@@ -2,7 +2,7 @@ export const es = {
     // Navbar
     "nav.home": "Inicio",
     "nav.shop": "Tienda",
-    "nav.classes": "Clases de Costura",
+    "nav.classes": "Club MERAKI ArteSano",
     "nav.contact": "Contacto",
     "nav.academy": "Mi Academia",
     "nav.login": "Entrar",
@@ -39,9 +39,10 @@ export const es = {
     "store.btnAdd": "Añadir",
 
     // Landing Classes CTA
-    "cta.title": "Saca el máximo partido a tu máquina de coser.",
-    "cta.desc": "Únete a nuestro club online. Suscríbete mensualmente, recibe patrones exclusivos y accede a clases en directo impartidas por profesionales.",
-    "cta.btn": "Ver Planes de Suscripción",
+    "cta.badge": "★ CLUB MERAKI ARTESANO",
+    "cta.title": "Crea, aprende, y disfruta cada mes.",
+    "cta.desc": "Únete a nuestro club online. Descubre proyectos creativos, ideas e inspiración para disfrutar de la creatividad a tu ritmo y dedicarte un momento solo para ti. Accede a clases en directo todas las semanas.",
+    "cta.btn": "Quiero unirme al club",
 
     // Shop (Tienda)
     "shop.title": "Catálogo de Productos",

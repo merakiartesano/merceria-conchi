@@ -20,7 +20,10 @@ const Login = () => {
     const { t } = useLanguage();
 
     // From where the user came, so we can redirect them back
-    const from = location.state?.from?.pathname || '/academia';
+    const fromLocation = location.state?.from;
+    const from = fromLocation
+        ? (fromLocation.pathname + (fromLocation.search || ''))
+        : '/academia';
 
     const handleAuth = async (e) => {
         e.preventDefault();

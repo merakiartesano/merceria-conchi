@@ -48,8 +48,7 @@ const Navbar = () => {
             <ul className={`nav-links ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
                 <li><NavLink to="/" className="nav-link" end>{t('nav.home')}</NavLink></li>
                 <li><NavLink to="/tienda" className="nav-link">{t('nav.shop')}</NavLink></li>
-                <li><NavLink to="/clases" className="nav-link">{t('nav.classes')}</NavLink></li>
-                <li><NavLink to="/contacto" className="nav-link">{t('nav.contact')}</NavLink></li>
+                 <li><NavLink to="/clases" className="nav-link">{t('nav.classes')}</NavLink></li>
                 <li style={{ marginLeft: '10px' }}>
                     <NavLink to={user ? "/academia" : "/login"} className="nav-link" style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold', color: 'var(--color-accent)' }}>
                         <User size={16} /> {user ? t('nav.academy') : "Entrar"}
