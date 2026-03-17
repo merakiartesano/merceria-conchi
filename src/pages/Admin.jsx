@@ -1057,7 +1057,9 @@ const Admin = () => {
                                                             </span>
                                                         </td>
                                                         <td style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                                                            {sub?.current_period_end ? new Date(sub.current_period_end * 1000).toLocaleDateString('es-ES') : '—'}
+                                                            {sub?.current_period_end 
+                                                                ? new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleDateString('es-ES') 
+                                                                : '—'}
                                                         </td>
                                                         <td>
                                                             {sub?.shipping_details ? (

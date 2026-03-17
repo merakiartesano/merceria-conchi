@@ -28,10 +28,20 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseAdminKey)
 
     // 2. Authenticate the admin user
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'No authorization header provided' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token)
     
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      console.error('Auth error:', authError);
+      return new Response(JSON.stringify({ error: 'Unauthorized: ' + (authError?.message || 'User not found') }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
