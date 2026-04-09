@@ -8,6 +8,7 @@ import { ShoppingBag, Menu, X, User } from 'lucide-react';
 const Navbar = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isLangOpen, setIsLangOpen] = useState(false);
     const { getCartCount, setIsCartOpen } = useCart();
     const { user } = useAuth();
     const { language, setLanguage, t } = useLanguage();
@@ -58,11 +59,25 @@ const Navbar = () => {
 
             {/* Desktop Actions */}
             <div className="nav-actions">
-                <select className="lang-select" value={language} onChange={handleLanguageChange}>
-                    <option value="es">🇪🇸 ES</option>
-                    <option value="en">🇬🇧 EN</option>
-                    <option value="fr">🇫🇷 FR</option>
-                </select>
+                <div className={`lang-switcher ${isLangOpen ? 'open' : ''}`} onClick={() => setIsLangOpen(!isLangOpen)}>
+                    <div className="active-lang">
+                        <img src={`/flags/${language}.png`} alt={language.toUpperCase()} />
+                    </div>
+                    
+                    <div className="lang-dropdown">
+                        {['es', 'en', 'fr', 'pt'].map((lang) => (
+                            <button 
+                                key={lang}
+                                onClick={(e) => { e.stopPropagation(); setLanguage(lang); setIsLangOpen(false); }} 
+                                className={`lang-flag-btn ${language === lang ? 'active' : ''}`}
+                                title={lang === 'es' ? 'Español' : lang === 'en' ? 'English' : lang === 'fr' ? 'Français' : 'Português'}
+                            >
+                                <img src={`/flags/${lang}.png`} alt={lang.toUpperCase()} />
+                                <span className="lang-label">{lang.toUpperCase()}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 <button className="icon-btn cart-btn" onClick={() => setIsCartOpen(true)}>
                     <ShoppingBag size={20} />

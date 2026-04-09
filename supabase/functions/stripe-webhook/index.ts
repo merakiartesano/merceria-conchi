@@ -281,14 +281,15 @@ serve(async (req) => {
           console.error('Webhook failed to find associated user for email:', session.customer_details?.email);
         }
       }
-    } else if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated') {
+    } else if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.created') {
       const subscription = event.data.object as Stripe.Subscription
       const customerId = subscription.customer as string
       
       const { error } = await supabaseAdmin
         .from('subscriptions')
         .update({
-          status: subscription.status
+          status: subscription.status,
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
         })
         .eq('stripe_customer_id', customerId)
 

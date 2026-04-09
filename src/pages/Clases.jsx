@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { CheckCircle, ArrowRight, Sparkles, Star, Users, Video, Gift, Loader2, Lock, ChevronDown, ChevronUp, Heart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { getActiveSubscribersCount } from '../lib/productService';
 
 const FAQItem = ({ question, answer }) => {
@@ -25,6 +26,7 @@ const FAQItem = ({ question, answer }) => {
 
 const Clases = () => {
     const { user, hasActiveSubscription } = useAuth();
+    const { t } = useLanguage();
     const navigate = useNavigate();
     const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -57,29 +59,26 @@ const Clases = () => {
         fetchSettings();
     }, []);
 
-    const paymentLink = settings?.stripe_payment_link;
     const maxSubscribers = settings?.max_subscribers || 0;
     const isFull = maxSubscribers > 0 && activeSpots >= maxSubscribers;
 
     const handleCTA = () => {
         if (!user) {
-            // Redirect to login, but remember where to go after authentication
             navigate('/login', {
                 state: { from: { pathname: '/checkout', search: '?type=subscription' } }
             });
         } else if (hasActiveSubscription) {
             navigate('/academia');
         } else {
-            // User already has account, go straight to checkout
             navigate('/checkout?type=subscription');
         }
     };
 
     const ctaLabel = !user
-        ? 'Quiero unirme al club'
+        ? t('clases.hero.cta.unauth')
         : hasActiveSubscription
-            ? 'Ir a mi Academia →'
-            : 'Quiero unirme al club';
+            ? t('clases.hero.cta.authSub')
+            : t('clases.card.joinBtn');
 
     const renderCTAButton = (secondary = false) => (
         <button 
@@ -112,71 +111,73 @@ const Clases = () => {
             {/* 1. HERO SECTION */}
             <section style={{
                 background: 'linear-gradient(135deg, #fff5f8 0%, #fdfbf7 100%)',
-                padding: '7rem 2rem 5rem',
+                padding: 'clamp(4rem, 15vw, 7rem) clamp(1rem, 5vw, 2rem) 5rem',
                 textAlign: 'center',
-                borderBottom: '1px solid #f1f5f9'
+                borderBottom: '1px solid #f1f5f9',
+                overflowX: 'hidden'
             }}>
                 <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-                    <div style={{ display: 'inline-block', background: '#fef3c7', color: '#d97706', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '700', marginBottom: '2rem', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                        🧶 Club Meraki ArteSano
-                    </div>
+
                     <h1 style={{ fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', color: 'var(--color-primary)', marginBottom: '1.5rem', fontFamily: 'var(--font-heading)', lineHeight: 1.1, textWrap: 'balance' }}>
-                        Crea, aprende, y disfruta cada mes.
+                        {t('clases.hero.title')}
                     </h1>
                     <p style={{ fontSize: '1.3rem', color: '#475569', maxWidth: '650px', margin: '0 auto 3rem', lineHeight: 1.6, textWrap: 'balance' }}>
-                        Cada mes descubrirás proyectos creativos, ideas e inspiración para disfrutar de la creatividad a tu ritmo y dedicarte un momento solo para ti.
+                        {t('clases.hero.desc')}
                     </p>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
                         {renderCTAButton()}
-                        <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>Empieza hoy tu momento creativo.</p>
+                        <p style={{ fontSize: '0.95rem', color: '#64748b', margin: 0, fontWeight: '500' }}>{t('clases.hero.cta.subtext')}</p>
                     </div>
 
                     {!user && (
                         <p style={{ marginTop: '2.5rem', fontSize: '0.95rem', color: '#94a3b8' }}>
-                            ¿Ya formas parte del club? <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: '600', textDecoration: 'underline' }}>Inicia sesión</Link>
+                            {t('clases.hero.loginText')} <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: '600', textDecoration: 'underline' }}>{t('clases.hero.loginLink')}</Link>
                         </p>
                     )}
                 </div>
             </section>
 
             {/* 2. ¿QUÉ ES EL CLUB CREATIVO? */}
-            <section style={{ padding: '6rem 2rem', backgroundColor: 'white' }}>
+            <section style={{ padding: 'clamp(4rem, 10vw, 6rem) clamp(1rem, 5vw, 2rem)', backgroundColor: 'white', overflowX: 'hidden' }}>
                 <div style={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
                     <h2 style={{ fontSize: '2.5rem', color: 'var(--color-heading)', marginBottom: '2rem', fontFamily: 'var(--font-heading)' }}>
-                        ¿Qué es el Club Creativo?
+                        {t('clases.whatIs.title')}
                     </h2>
                     <div style={{ fontSize: '1.15rem', color: '#475569', lineHeight: 1.8, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                        <p style={{ margin: 0 }}>El Club Creativo de Meraki ArteSano es un espacio pensado para las personas que disfrutan creando con las manos, aprendiendo cosas nuevas y dedicándose un momento para desconectar del ritmo del día a día.</p>
-                        <p style={{ margin: 0 }}>Al suscribirte al club, formarás parte de una comunidad creativa donde cada mes encontrarás proyectos exclusivos, ideas inspiradoras y propuestas de manualidades que te ayudarán a seguir desarrollando tu creatividad de una forma sencilla y agradable.</p>
-                        <p style={{ margin: 0 }}>El objetivo del Club Creativo es acompañarte en tu camino creativo, ofreciéndote inspiración, aprendizaje y momentos de calma a través de las manualidades. No importa si estás empezando o si ya tienes experiencia: lo importante es tener ganas de crear y disfrutar del proceso.</p>
+                        <p style={{ margin: 0 }}>{t('clases.whatIs.p1')}</p>
+                        <p style={{ margin: 0 }}>{t('clases.whatIs.p2')}</p>
+                        <p style={{ margin: 0 }}>{t('clases.whatIs.p3')}</p>
                         <div style={{ backgroundColor: '#fff5f8', padding: '1.8rem', borderRadius: '20px', borderLeft: '4px solid var(--color-accent)' }}>
-                            <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-accent)', fontStyle: 'italic' }}>Más que un simple contenido, el Club Creativo es un lugar para dedicarte tiempo a ti misma, experimentar con nuevas técnicas y volver a conectar con el placer de crear.</p>
+                            <p style={{ margin: 0, fontWeight: '600', color: 'var(--color-accent)', fontStyle: 'italic' }}>{t('clases.whatIs.quote')}</p>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* 3. BENEFICIOS */}
-            <section style={{ padding: '6rem 2rem', backgroundColor: '#fdfbf7' }}>
+            <section style={{ padding: 'clamp(4rem, 10vw, 6rem) clamp(1rem, 5vw, 2rem)', backgroundColor: '#fdfbf7', overflowX: 'hidden' }}>
                 <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
                         <h2 style={{ fontSize: '2.8rem', color: 'var(--color-heading)', marginBottom: '1rem', fontFamily: 'var(--font-heading)' }}>
-                            Beneficios de pertenecer al Club Creativo
+                            {t('clases.benefits.title')}
                         </h2>
-                        <p style={{ fontSize: '1.2rem', color: '#64748b', maxWidth: '700px', margin: '0 auto' }}>
-                            Formar parte del Club Creativo de Meraki ArteSano te permitirá disfrutar de muchas ventajas pensadas para inspirarte, aprender y seguir desarrollando tu creatividad.
+                        <p style={{ fontSize: '1.2rem', color: '#64748b', maxWidth: '750px', margin: '0 auto 2.5rem', lineHeight: '1.6' }}>
+                            {t('clases.benefits.subtitle')}
                         </p>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            {renderCTAButton()}
+                        </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '2rem' }}>
                         {[
-                            { emoji: '✨', title: 'Proyectos exclusivos cada mes', desc: 'Accede a propuestas creativas diseñadas especialmente para los miembros del club, con ideas nuevas para seguir disfrutando de las manualidades.' },
-                            { emoji: '🎨', title: 'Inspiración constante', desc: 'Descubre nuevas técnicas, combinaciones y propuestas que te ayudarán a ampliar tus conocimientos y mantener viva tu creatividad.' },
-                            { emoji: '📚', title: 'Explicaciones claras y accesibles', desc: 'Los proyectos están pensados para que puedas realizarlos fácilmente, tanto si estás empezando como si ya tienes experiencia.' },
-                            { emoji: '💛', title: 'Tiempo para ti', desc: 'La creatividad es también una forma de relajarse y desconectar. El club te invita a dedicarte un momento de calma mientras creas con tus manos.' },
-                            { emoji: '👩‍🎨', title: 'Ventajas especiales para miembros', desc: 'Los miembros del club podrán disfrutar de beneficios especiales relacionados con algunas actividades, talleres o propuestas de Meraki ArteSano.' },
-                            { emoji: '🌸', title: 'Formar parte de una comunidad', desc: 'Un espacio donde compartir la pasión por las manualidades, aprender juntos y disfrutar del proceso creativo.' },
+                            { emoji: '✨', title: t('clases.benefits.b1.title'), desc: t('clases.benefits.b1.desc') },
+                            { emoji: '🎨', title: t('clases.benefits.b2.title'), desc: t('clases.benefits.b2.desc') },
+                            { emoji: '📚', title: t('clases.benefits.b3.title'), desc: t('clases.benefits.b3.desc') },
+                            { emoji: '💛', title: t('clases.benefits.b4.title'), desc: t('clases.benefits.b4.desc') },
+                            { emoji: '👩‍🎨', title: t('clases.benefits.b5.title'), desc: t('clases.benefits.b5.desc') },
+                            { emoji: '🌸', title: t('clases.benefits.b6.title'), desc: t('clases.benefits.b6.desc') },
                         ].map((b, i) => (
                             <div key={i} style={{ backgroundColor: 'white', padding: '2.5rem', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.04)', transition: 'transform 0.3s' }}>
                                 <div style={{ fontSize: '3rem', marginBottom: '1.2rem' }}>{b.emoji}</div>
@@ -187,9 +188,7 @@ const Clases = () => {
                     </div>
 
                     <div style={{ textAlign: 'center', marginTop: '5rem' }}>
-                        <p style={{ fontSize: '1.6rem', color: 'var(--color-accent)', fontWeight: '700', marginBottom: '2rem', fontStyle: 'italic', fontFamily: 'var(--font-heading)' }}>
-                            “Tu creatividad merece este espacio: cada mes, nuevas ideas y proyectos por solo 39€.”
-                        </p>
+
                         <div style={{ display: 'flex', justifyContent: 'center' }}>
                             {renderCTAButton()}
                         </div>
@@ -198,25 +197,26 @@ const Clases = () => {
             </section>
 
             {/* 4. ¿ES PARA TI? */}
-            <section style={{ padding: '6rem 2rem', backgroundColor: 'white' }}>
+            <section style={{ padding: 'clamp(4rem, 10vw, 6rem) clamp(1rem, 5vw, 2rem)', backgroundColor: 'white', overflowX: 'hidden' }}>
                 <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                         <p style={{ fontSize: '1.15rem', color: '#475569', lineHeight: 1.7, marginBottom: '2rem' }}>
-                            El Club Creativo de Meraki ArteSano está pensado para todas las personas que sienten que crear con las manos es una forma de disfrutar, relajarse y expresarse.
+                            {t('clases.isForYou.subtitle')}
                         </p>
                         <h2 style={{ fontSize: '2.5rem', color: 'var(--color-heading)', margin: 0, fontFamily: 'var(--font-heading)' }}>
-                            Este club es para ti si...
+                            {t('clases.isForYou.title')}
                         </h2>
                     </div>
 
-                    <div style={{ backgroundColor: '#fdf2f8', padding: '3.5rem', borderRadius: '30px', border: '1px solid #fce7f3' }}>
+                    <div style={{ backgroundColor: '#fdf2f8', padding: 'clamp(1.5rem, 5vw, 3.5rem)', borderRadius: '30px', border: '1px solid #fce7f3' }}>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             {[
-                                "Te gustan las manualidades y quieres seguir aprendiendo nuevas ideas y técnicas.",
-                                "Disfrutas creando y te gustaría dedicar más tiempo a tu creatividad.",
-                                "Buscas una actividad que te ayude a relajarte y desconectar del día a día.",
-                                "Te encanta descubrir proyectos nuevos y dejar volar tu imaginación.",
-                                "Quieres formar parte de un espacio creativo donde inspirarte."
+                                t('clases.isForYou.li1'),
+                                t('clases.isForYou.li2'),
+                                t('clases.isForYou.li3'),
+                                t('clases.isForYou.li4'),
+                                t('clases.isForYou.li5'),
+                                t('clases.isForYou.li6')
                             ].map((item, i) => (
                                 <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '15px', fontSize: '1.15rem', color: '#334155', lineHeight: 1.5 }}>
                                     <Sparkles size={24} style={{ color: '#ec4899', flexShrink: 0, marginTop: '3px' }} />
@@ -225,61 +225,64 @@ const Clases = () => {
                             ))}
                         </ul>
                         <div style={{ marginTop: '3rem', paddingTop: '2rem', borderTop: '1px solid #fbcfe8', textAlign: 'center' }}>
-                            <p style={{ fontWeight: '600', color: 'var(--color-accent)', fontSize: '1.2rem', margin: 0 }}>
-                                No importa si estás empezando o si ya tienes experiencia: lo importante es tener ganas de crear y disfrutar del proceso.
+                            <p style={{ fontWeight: '600', color: 'var(--color-accent)', fontSize: '1.2rem', margin: '0 0 2rem 0' }}>
+                                {t('clases.isForYou.bottomText')}
                             </p>
+                            <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                {renderCTAButton()}
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
 
             {/* 5. PRICING & QUÉ INCLUYE */}
-            <section style={{ padding: '7rem 2rem', backgroundColor: '#0f172a', color: 'white' }}>
-                <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) minmax(350px, 450px)', gap: '5rem', alignItems: 'center' }}>
+            <section style={{ padding: 'clamp(4rem, 10vw, 7rem) clamp(1rem, 5vw, 2rem)', backgroundColor: '#0f172a', color: 'white', overflowX: 'hidden' }}>
+                <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: '4rem', alignItems: 'center' }}>
                     
                     {/* Qué Inluye */}
                     <div>
                         <div style={{ display: 'inline-block', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '6px 16px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '700', marginBottom: '1.5rem', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                            Club Creativo Meraki ArteSano
+                            {t('clases.pricing.badge')}
                         </div>
                         <h2 style={{ fontSize: '2.5rem', color: 'white', marginBottom: '2rem', fontFamily: 'var(--font-heading)' }}>
-                            ¿Qué incluye cada mes?
+                            {t('clases.pricing.title')}
                         </h2>
                         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 3rem', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
                             <li style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                                 <CheckCircle size={22} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} /> 
-                                <span style={{ fontSize: '1.1rem', color: '#e2e8f0', lineHeight: 1.5 }}><strong>Kit completo</strong> con todos los materiales. <br/><span style={{ fontSize: '0.95rem', color: '#94a3b8' }}>Es muy importante para nosotros que lo que recibas sea de las <strong>mejores lanas españolas</strong>.</span></span>
+                                <span style={{ fontSize: '1.1rem', color: '#e2e8f0', lineHeight: 1.5 }}>{t('clases.pricing.inc1')} <br/><span style={{ fontSize: '0.95rem', color: '#94a3b8' }}>{t('clases.pricing.inc1.sub')}</span></span>
                             </li>
-                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}><strong>Instrucciones impresas</strong> claras paso a paso.</span></li>
-                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>Acceso a <strong>2h en directo</strong> a través de zoom o similar.</span></li>
-                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>Acceso a <strong>grabación</strong>.</span></li>
-                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>Grupo privado de <strong>Telegram</strong>.</span></li>
-                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}><strong>Proyecto exclusivo</strong> (dirigido tanto a crochet como a tricot).</span></li>
-                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Gift size={22} color="#f59e0b" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>Entre todo lo que incluye cada mes, se incluirá <strong>alguna sorpresa</strong>!</span></li>
+                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{t('clases.pricing.inc2')}</span></li>
+                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{t('clases.pricing.inc3')}</span></li>
+                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{t('clases.pricing.inc4')}</span></li>
+                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{t('clases.pricing.inc5')}</span></li>
+                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><CheckCircle size={22} color="#10b981" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{t('clases.pricing.inc6')}</span></li>
+                            <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Gift size={22} color="#f59e0b" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{t('clases.pricing.inc7')}</span></li>
                         </ul>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '2rem' }}>
                             <div>
                                 <h4 style={{ margin: '0 0 15px', color: '#38bdf8', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    📅 Calendario Mensual
+                                    {t('clases.pricing.cal.title')}
                                 </h4>
                                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.8 }}>
-                                    <li>Del 1 al 5 → Preparación de kits.</li>
-                                    <li>Día 7 → Envío de cajas.</li>
-                                    <li>Día 20 → Directo mensual.</li>
-                                    <li>Día 21 al 30 → Grabación disponible.</li>
+                                    <li>{t('clases.pricing.cal.li1')}</li>
+                                    <li>{t('clases.pricing.cal.li2')}</li>
+                                    <li>{t('clases.pricing.cal.li3')}</li>
+                                    <li>{t('clases.pricing.cal.li4')}</li>
                                 </ul>
                             </div>
                             <div>
                                 <h4 style={{ margin: '0 0 15px', color: '#38bdf8', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    🌟 Nuestra Diferencia
+                                    {t('clases.pricing.diff.title')}
                                 </h4>
                                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.8 }}>
-                                    <li>• Cercanía y acompañamiento real.</li>
-                                    <li>• Resolución de dudas en directo.</li>
-                                    <li>• Comunidad de tejedoras.</li>
-                                    <li>• Recibirlo todo en casa cómodamente.</li>
-                                    <li>• Descuentos en tienda física y kits.</li>
+                                    <li>{t('clases.pricing.diff.li1')}</li>
+                                    <li>{t('clases.pricing.diff.li2')}</li>
+                                    <li>{t('clases.pricing.diff.li3')}</li>
+                                    <li>{t('clases.pricing.diff.li4')}</li>
+                                    <li>{t('clases.pricing.diff.li5')}</li>
                                 </ul>
                             </div>
                         </div>
@@ -299,41 +302,41 @@ const Clases = () => {
                                 boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
                             }}>
                                 <div style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', padding: '16px', textAlign: 'center', color: 'white', fontWeight: 'bold', letterSpacing: '1px' }}>
-                                    🚀 OFERTA DE LANZAMIENTO
+                                    {t('clases.card.badge')}
                                 </div>
-                                <div style={{ padding: '3.5rem 2.5rem', textAlign: 'center' }}>
-                                    <h3 style={{ fontSize: '1.6rem', margin: '0 0 15px', color: 'var(--color-heading)' }}>Suscripción Mensual</h3>
+                                <div style={{ padding: 'clamp(2rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem)', textAlign: 'center' }}>
+                                    <h3 style={{ fontSize: '1.6rem', margin: '0 0 15px', color: 'var(--color-heading)' }}>{t('clases.card.title')}</h3>
                                     
                                     <div style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '1.2rem', marginBottom: '5px' }}>
-                                        PRECIO OFICIAL 39€
+                                        {t('clases.card.officialPrice')}
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px', color: 'var(--color-accent)' }}>
-                                        <span style={{ fontSize: '4rem', fontWeight: '800', lineHeight: 1 }}>32</span>
-                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>€/mes</span>
+                                        <span style={{ fontSize: '4rem', fontWeight: '800', lineHeight: 1 }}>{t('clases.card.price')}</span>
+                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{t('clases.card.currency')}</span>
                                     </div>
                                     
                                     <div style={{ margin: '15px 0 25px' }}>
                                         <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--color-accent)', backgroundColor: '#fff5f8', display: 'inline-block', padding: '8px 16px', borderRadius: '30px', border: '1px solid #fce7f3' }}>
-                                            🔥 PRECIO FUNDADORAS el primer mes
+                                            {t('clases.card.founderBadge')}
                                         </span>
                                     </div>
                                     
                                     <p style={{ margin: '0 0 2.5rem', fontSize: '1rem', color: '#475569', fontWeight: '500' }}>
-                                        Limitado a {maxSubscribers || 30} plazas (<span style={{ color: activeSpots >= (maxSubscribers || 30) ? '#ef4444' : '#10b981' }}>solo quedan {maxSubscribers > 0 ? Math.max(0, maxSubscribers - activeSpots) : 'plazas'}</span>)
+                                        {t('clases.card.limited').replace('{max}', maxSubscribers || 30)} (<span style={{ color: activeSpots >= (maxSubscribers || 30) ? '#ef4444' : '#10b981' }}>{t('clases.card.spotsLeft').replace('{left}', maxSubscribers > 0 ? Math.max(0, maxSubscribers - activeSpots) : 'plazas')}</span>)
                                     </p>
 
                                     {hasActiveSubscription ? (
                                         <Link to="/academia" className="btn btn-primary" style={{ display: 'block', textAlign: 'center', padding: '1.2rem', borderRadius: '50px', fontSize: '1.1rem', fontWeight: '700' }}>
-                                            ✅ Ya soy miembro — Ir a mi Academia
+                                            {t('clases.card.memberBtn')}
                                         </Link>
                                     ) : isFull ? (
                                         <button disabled style={{ display: 'block', width: '100%', padding: '1.2rem', borderRadius: '50px', fontSize: '1.1rem', fontWeight: '700', backgroundColor: '#e2e8f0', color: '#64748b', border: 'none', cursor: 'not-allowed' }}>
-                                            🔒 Plazas Agotadas
+                                            {t('clases.card.soldOut')}
                                         </button>
                                     ) : (
                                         <>
                                             <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '12px', fontStyle: 'italic', fontWeight: '500' }}>
-                                                💡 "Un pequeño precio para grandes momentos creativos."
+                                                {t('clases.card.quote')}
                                             </p>
                                             <button 
                                                 onClick={handleCTA}
@@ -341,8 +344,11 @@ const Clases = () => {
                                                 style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '1.2rem', borderRadius: '50px', fontSize: '1.1rem', fontWeight: '700', boxShadow: '0 8px 20px rgba(245,158,11,0.25)' }}
                                             >
                                                 {!user ? <Lock size={18} /> : null}
-                                                Quiero unirme al club
+                                                {t('clases.card.joinBtn')}
                                             </button>
+                                            <p style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '12px', fontWeight: '500' }}>
+                                                {t('clases.card.noCommitment')}
+                                            </p>
                                         </>
                                     )}
                                 </div>
@@ -353,70 +359,73 @@ const Clases = () => {
             </section>
 
             {/* 6. FAQ */}
-            <section style={{ padding: '6rem 2rem', backgroundColor: '#faf8f5' }}>
+            <section style={{ padding: 'clamp(4rem, 10vw, 6rem) clamp(1rem, 5vw, 2rem)', backgroundColor: '#faf8f5', overflowX: 'hidden' }}>
                 <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <h2 style={{ fontSize: '2.5rem', color: 'var(--color-heading)', marginBottom: '3rem', fontFamily: 'var(--font-heading)', textAlign: 'center' }}>
-                        Preguntas Frecuentes (FAQ)
+                        {t('clases.faq.title')}
                     </h2>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'white', padding: '2rem 3rem', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: 'white', padding: 'clamp(1.5rem, 5vw, 2rem) clamp(1rem, 5vw, 3rem)', borderRadius: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
                         <FAQItem 
-                            question="1️⃣ ¿Qué nivel de experiencia necesito?" 
-                            answer="No necesitas experiencia previa. Cada proyecto sorpresa viene con guía paso a paso, fotos y consejos, para que puedas disfrutar creando desde el primer día." 
+                            question={t('clases.faq.q1')} 
+                            answer={t('clases.faq.a1')} 
                         />
                         <FAQItem 
-                            question="2️⃣ ¿Qué incluye exactamente el kit?" 
-                            answer="Cada mes recibirás todos los materiales necesarios para el proyecto sorpresa, más la guía de instrucciones. Solo necesitas tus ganas de crear." 
+                            question={t('clases.faq.q2')} 
+                            answer={t('clases.faq.a2')} 
                         />
                         <FAQItem 
-                            question="3️⃣ ¿Puedo cancelar la suscripción en cualquier momento?" 
-                            answer="Sí. La suscripción es mensual y flexible, puedes cancelarla en cualquier momento antes de que se envíe el siguiente kit." 
+                            question={t('clases.faq.q3')} 
+                            answer={t('clases.faq.a3')} 
                         />
                         <FAQItem 
-                            question="4️⃣ ¿Qué pasa si no me gustan los colores o materiales?" 
-                            answer="Seleccionamos materiales de calidad y colores combinables para todos los gustos. Cada kit está diseñado para que sea versátil y divertido." 
+                            question={t('clases.faq.q4')} 
+                            answer={t('clases.faq.a4')} 
                         />
                         <FAQItem 
-                            question="5️⃣ ¿Cuándo recibo mi proyecto sorpresa?" 
-                            answer="Los kits se envían al inicio de cada mes (día 7), para que puedas disfrutar de tu proyecto sorpresa lo antes posible." 
+                            question={t('clases.faq.q5')} 
+                            answer={t('clases.faq.a5')} 
                         />
                         <FAQItem 
-                            question="6️⃣ ¿Por qué es una buena inversión?" 
-                            answer="Por menos de 1,30 € al día, recibes un proyecto sorpresa exclusivo, inspiración, materiales y guía paso a paso. Es un momento para ti, para desconectar y desarrollar tu creatividad." 
+                            question={t('clases.faq.q6')} 
+                            answer={t('clases.faq.a6')} 
                         />
                         <FAQItem 
-                            question="7️⃣ ¿Qué beneficios tiene tejer para mí?" 
-                            answer="Tejer es mucho más que hacer manualidades: relaja y reduce el estrés, mejora la concentración, potencia tu creatividad, genera satisfacción y autoestima al ver un proyecto terminado hecho por ti, y te permite conectar con una comunidad creativa." 
+                            question={t('clases.faq.q7')} 
+                            answer={t('clases.faq.a7')} 
                         />
                         <FAQItem 
-                            question="8️⃣ ¿Es tejer solo para invierno?" 
-                            answer="¡Para nada! Cada proyecto está pensado para todo el año, incluyendo accesorios, decoración, regalos y proyectos prácticos que puedes usar en cualquier temporada." 
+                            question={t('clases.faq.q8')} 
+                            answer={t('clases.faq.a8')} 
                         />
                     </div>
                 </div>
             </section>
 
             {/* 7. FINAL CTA */}
-            <section style={{ padding: '6rem 2rem', backgroundColor: 'var(--color-accent)', color: 'white', textAlign: 'center' }}>
+            <section style={{ padding: 'clamp(4rem, 10vw, 6rem) clamp(1rem, 5vw, 2rem)', backgroundColor: 'var(--color-accent)', color: 'white', textAlign: 'center', overflowX: 'hidden' }}>
                 <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
                         <Heart size={48} color="white" fill="white" opacity={0.2} />
                     </div>
                     <h2 style={{ fontSize: '2.8rem', marginBottom: '1.5rem', fontFamily: 'var(--font-heading)' }}>
-                        Empieza tu experiencia creativa
+                        {t('clases.final.title')}
                     </h2>
                     <p style={{ fontSize: '1.3rem', margin: '0 auto 3.5rem', opacity: 0.9, lineHeight: 1.6, maxWidth: '700px' }}>
-                        Si sientes que la creatividad forma parte de ti y quieres seguir explorándola, el Club Creativo de Meraki ArteSano es tu lugar. Un espacio pensado para inspirarte, aprender y disfrutar de la creatividad cada mes.
+                        {t('clases.final.desc')}
                     </p>
                     <button 
                         onClick={handleCTA}
                         className="btn" 
                         style={{ backgroundColor: 'white', color: 'var(--color-accent)', padding: '1.3rem 3.5rem', fontSize: '1.25rem', fontWeight: '800', borderRadius: '50px', boxShadow: '0 10px 30px rgba(0,0,0,0.15)' }}
                     >
-                        ✨ Únete hoy al Club Creativo y empieza a crear
+                        {t('clases.final.btn')}
                     </button>
                     <p style={{ marginTop: '2rem', fontSize: '1.1rem', fontStyle: 'italic', opacity: 0.8 }}>
-                        "Invierte en ti misma: inspiración, manualidades y bienestar creativo cada mes."
+                        {t('clases.final.quote')}
+                    </p>
+                    <p style={{ marginTop: '1rem', fontSize: '0.95rem', fontWeight: '600', opacity: 0.9 }}>
+                        {t('clases.final.noCommitment')}
                     </p>
                 </div>
             </section>

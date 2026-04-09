@@ -1,16 +1,18 @@
 import React, { useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
-import { CheckCircle, Package, Mail, ArrowRight, ShoppingBag } from 'lucide-react';
+import { CheckCircle, Package, Mail, ArrowRight, ShoppingBag, BookOpen } from 'lucide-react';
 
 const PedidoConfirmado = () => {
     const navigate = useNavigate();
     const { clearCart } = useCart();
+    const [searchParams] = useSearchParams();
+    const isSubscription = searchParams.get('type') === 'subscription';
 
     useEffect(() => {
-        // Clear the cart when this page loads
-        if (clearCart) clearCart();
-    }, []);
+        // Clear the cart when this page loads, but only for regular orders
+        if (!isSubscription && clearCart) clearCart();
+    }, [isSubscription, clearCart]);
 
     return (
         <div style={{
@@ -53,7 +55,7 @@ const PedidoConfirmado = () => {
                     marginBottom: '12px',
                     lineHeight: '1.2',
                 }}>
-                    ¡Gracias por tu compra!
+                    {isSubscription ? "¡Suscripción Activada!" : "¡Gracias por tu compra!"}
                 </h1>
 
                 <p style={{
@@ -62,7 +64,9 @@ const PedidoConfirmado = () => {
                     marginBottom: '40px',
                     lineHeight: '1.6',
                 }}>
-                    Tu pedido ha sido recibido y está siendo procesado. Pronto recibirás tu compra.
+                    {isSubscription 
+                        ? "Tu suscripción al Club Creativo MERAKI ha sido procesada correctamente." 
+                        : "Tu pedido ha sido recibido y está siendo procesado. Pronto recibirás tu compra."}
                 </p>
 
                 {/* Info Cards */}
@@ -93,11 +97,13 @@ const PedidoConfirmado = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                         }}>
-                            <Package size={22} color="var(--color-primary)" />
+                            {isSubscription ? <BookOpen size={22} color="var(--color-primary)" /> : <Package size={22} color="var(--color-primary)" />}
                         </div>
-                        <p style={{ fontWeight: '600', color: 'var(--color-text)', fontSize: '0.95rem' }}>Pedido recibido</p>
+                        <p style={{ fontWeight: '600', color: 'var(--color-text)', fontSize: '0.95rem' }}>
+                            {isSubscription ? "Acceso Total" : "Pedido recibido"}
+                        </p>
                         <p style={{ fontSize: '0.85rem', color: 'var(--color-text-light)', lineHeight: '1.4' }}>
-                            Estamos preparando tu pedido con cariño.
+                            {isSubscription ? "Ya puedes acceder a las clases y contenidos." : "Estamos preparando tu pedido con cariño."}
                         </p>
                     </div>
 
@@ -130,34 +136,7 @@ const PedidoConfirmado = () => {
                         </p>
                     </div>
 
-                    {/* Card 3 */}
-                    <div style={{
-                        backgroundColor: 'var(--color-surface)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '24px 16px',
-                        boxShadow: 'var(--shadow-sm)',
-                        border: '1px solid #e6f7f5',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '10px',
-                    }}>
-                        <div style={{
-                            width: '48px',
-                            height: '48px',
-                            borderRadius: '50%',
-                            backgroundColor: '#fce4ec',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}>
-                            <ShoppingBag size={22} color="#e91e63" />
-                        </div>
-                        <p style={{ fontWeight: '600', color: 'var(--color-text)', fontSize: '0.95rem' }}>Envío en 2-5 días</p>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-light)', lineHeight: '1.4' }}>
-                            Te notificaremos cuando se envíe.
-                        </p>
-                    </div>
+
                 </div>
 
                 {/* Divider Line */}
@@ -176,7 +155,7 @@ const PedidoConfirmado = () => {
                     justifyContent: 'center',
                     flexWrap: 'wrap',
                 }}>
-                    <Link to="/tienda" style={{
+                    <Link to={isSubscription ? "/academia" : "/tienda"} style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '8px',
@@ -193,7 +172,7 @@ const PedidoConfirmado = () => {
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-accent-hover)'}
                         onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--color-accent)'}
                     >
-                        Seguir comprando
+                        {isSubscription ? "Ir a la Academia" : "Seguir comprando"}
                         <ArrowRight size={18} />
                     </Link>
 

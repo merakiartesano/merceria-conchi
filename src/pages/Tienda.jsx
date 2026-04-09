@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { categories } from '../lib/mockData';
-import { getProducts } from '../lib/productService';
+import { getProducts, getCategories } from '../lib/productService';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { Filter, ShoppingCart, ChevronDown } from 'lucide-react';
@@ -10,23 +9,29 @@ const Tienda = () => {
     const [activeCategory, setActiveCategory] = useState('Todas');
     const [priceSort, setPriceSort] = useState('none'); // none, asc, desc
     const [products, setProducts] = useState([]);
+    const [categories, setCategories] = useState(['Todas']);
     const [loading, setLoading] = useState(true);
     const { addToCart } = useCart();
     const { t } = useLanguage();
 
     useEffect(() => {
-        const fetchStoreProducts = async () => {
+        const fetchStoreData = async () => {
             try {
-                const data = await getProducts();
-                setProducts(data || []);
+                const [productsData, categoriesData] = await Promise.all([
+                    getProducts(),
+                    getCategories()
+                ]);
+                setProducts(productsData || []);
+                const catNames = categoriesData ? categoriesData.map(c => c.name) : [];
+                setCategories(['Todas', ...catNames]);
             } catch (error) {
-                console.error("Error loading store products:", error);
+                console.error("Error loading store data:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStoreProducts();
+        fetchStoreData();
     }, []);
 
     // Filtering logic (super simple for UI purposes)

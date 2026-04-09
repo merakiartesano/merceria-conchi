@@ -29,6 +29,39 @@ export const getProductById = async (id) => {
     return data;
 };
 
+// --- CATEGORIES HELPER FUNCTIONS ---
+
+export const getCategories = async () => {
+    const { data, error } = await supabase
+        .from('product_categories')
+        .select('*')
+        .order('name', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+};
+
+export const createCategory = async (name) => {
+    const { data, error } = await supabase
+        .from('product_categories')
+        .insert([{ name }])
+        .select()
+        .single();
+
+    if (error) throw error;
+    return data;
+};
+
+export const deleteCategory = async (id) => {
+    const { error } = await supabase
+        .from('product_categories')
+        .delete()
+        .eq('id', id);
+
+    if (error) throw error;
+    return true;
+};
+
 // Helper function: upload an image to Supabase Storage
 export const uploadImage = async (file) => {
     try {
@@ -100,6 +133,7 @@ export const getOrders = async () => {
             created_at,
             customer_name,
             customer_email,
+            customer_phone,
             shipping_address,
             status,
             total_amount,
@@ -154,6 +188,7 @@ export const updateAcademySettings = async (settings) => {
         subscription_price: parseFloat(settings.subscriptionPrice?.toString().replace(',', '.')) || 9.99,
         subscription_features: settings.subscriptionFeatures || '',
         max_subscribers: parseInt(settings.maxSubscribers) || 0,
+        calendar_text: settings.calendarText || '',
         updated_at: new Date()
     };
 
@@ -280,7 +315,17 @@ export const getSubscribers = async () => {
                 status: u.status || 'inactive',
                 stripe_customer_id: u.stripe_customer_id || null,
                 current_period_end: u.current_period_end || null,
-                shipping_details: u.shipping_details || null
+                redsys_order_id: u.redsys_order_id || null,
+                shipping_details: (u.address || u.pickup_pref) ? {
+                    name: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+                    phone: u.phone || '',
+                    line1: u.address || '',
+                    postal_code: u.zip || '',
+                    city: u.city || '',
+                    state: u.state || '',
+                    country: u.country || '',
+                    pickup_pref: u.pickup_pref || false
+                } : null
             }
         ]
     }));
@@ -315,3 +360,42 @@ export const updateShippingZone = async (id, zoneData) => {
     return data;
 };
 
+
+// --- ACADEMY SUBSCRIPTIONS ADMIN HELPER ---
+
+export const cancelSubscription = async (userId) => {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Intentar cancelar vía Redsys Edge Function
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/redsys-cancel-subscription`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${session?.access_token || ''}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId })
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+            return true;
+        }
+
+        // Si la función de Redsys falla porque no hay identificador (o error 404), 
+        // fallback al RPC para al menos quitar el acceso en local.
+        console.warn("Redsys cancel failed, falling back to local RPC:", result.error);
+        
+        const { error: rpcError } = await supabase.rpc('cancel_admin_subscription', {
+            admin_pin: 'meraki2026',
+            target_user_id: userId
+        });
+
+        if (rpcError) throw rpcError;
+        return true;
+    } catch (error) {
+        console.error("Error canceling subscription:", error);
+        throw error;
+    }
+};

@@ -10,6 +10,12 @@ const Login = () => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [phone, setPhone] = useState('');
+    const [address, setAddress] = useState('');
+    const [zip, setZip] = useState('');
+    const [city, setCity] = useState('');
+    const [state, setState] = useState('');
+    const [country, setCountry] = useState('España');
+    
     const [isLogin, setIsLogin] = useState(true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -47,7 +53,12 @@ const Login = () => {
                         data: {
                             first_name: firstName,
                             last_name: lastName,
-                            phone: phone
+                            phone: phone,
+                            address: address,
+                            zip: zip,
+                            city: city,
+                            state: state,
+                            country: country
                         },
                         emailRedirectTo: window.location.origin + '/login',
                     }
@@ -56,7 +67,12 @@ const Login = () => {
                 
                 // If there's a session returned, meaning no email confirmation is required:
                 if (data?.session) {
-                    navigate(from, { replace: true });
+                    // Preparamos la navegación a la academia con autoSuscripcion si aplica
+                    if (from.includes('/academia')) {
+                        navigate(from + (from.includes('?') ? '&' : '?') + 'autoSuscripcion=true', { replace: true });
+                    } else {
+                        navigate(from, { replace: true });
+                    }
                 } else {
                     setMessage(t('auth.confirm'));
                 }
@@ -81,41 +97,51 @@ const Login = () => {
                 <form onSubmit={handleAuth}>
                     {!isLogin && (
                         <>
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('auth.firstName')}</label>
-                                <input
-                                    type="text"
-                                    required={!isLogin}
-                                    value={firstName}
-                                    onChange={(e) => setFirstName(e.target.value)}
-                                    style={{ width: '100%', padding: '14px 18px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '1.1rem', outline: 'none', transition: 'border-color 0.2s' }}
-                                    onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-                                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                                />
+                            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('auth.firstName')}</label>
+                                    <input type="text" required value={firstName} onChange={(e) => setFirstName(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('auth.lastName')}</label>
+                                    <input type="text" required value={lastName} onChange={(e) => setLastName(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                                </div>
                             </div>
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('auth.lastName')}</label>
-                                <input
-                                    type="text"
-                                    required={!isLogin}
-                                    value={lastName}
-                                    onChange={(e) => setLastName(e.target.value)}
-                                    style={{ width: '100%', padding: '14px 18px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '1.1rem', outline: 'none', transition: 'border-color 0.2s' }}
-                                    onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-                                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                                />
+
+                            <div style={{ marginBottom: '20px', display: 'flex', gap: '15px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('auth.phone')}</label>
+                                    <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('auth.country')}</label>
+                                    <select value={country} onChange={(e) => setCountry(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: '#fff' }}>
+                                        <option value="España">España</option>
+                                        <option value="Portugal">Portugal</option>
+                                        <option value="France">France</option>
+                                    </select>
+                                </div>
                             </div>
+
                             <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('auth.phone')}</label>
-                                <input
-                                    type="tel"
-                                    required={!isLogin}
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
-                                    style={{ width: '100%', padding: '14px 18px', border: '1px solid #e2e8f0', borderRadius: '12px', fontSize: '1.1rem', outline: 'none', transition: 'border-color 0.2s' }}
-                                    onFocus={(e) => e.target.style.borderColor = 'var(--color-primary)'}
-                                    onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-                                />
+                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('checkout.address')}</label>
+                                <input type="text" required value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Calle, número, piso..." style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('checkout.zip')}</label>
+                                    <input type="text" required value={zip} onChange={(e) => setZip(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('checkout.city')}</label>
+                                    <input type="text" required value={city} onChange={(e) => setCity(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                                <label style={{ display: 'block', marginBottom: '10px', fontSize: '1.05rem', color: '#4a5568' }}>{t('checkout.state')}</label>
+                                <input type="text" required value={state} onChange={(e) => setState(e.target.value)} style={{ width: '100%', padding: '12px 15px', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
                             </div>
                         </>
                     )}

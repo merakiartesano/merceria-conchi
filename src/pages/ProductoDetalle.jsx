@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getProductById } from '../lib/productService';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
-import { ArrowLeft, ShoppingCart, Plus, Minus, Tag, Truck } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Plus, Minus, Tag } from 'lucide-react';
 
 const ProductoDetalle = () => {
     const { id } = useParams();
@@ -101,15 +101,7 @@ const ProductoDetalle = () => {
                         </button>
                     </div>
 
-                    <div className="product-benefits">
-                        <div className="benefit-item">
-                            <Truck size={20} className="color-primary" />
-                            <div>
-                                <strong>{t('product.shipping')}</strong>
-                                <span>{t('product.shippingDesc')}</span>
-                            </div>
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>

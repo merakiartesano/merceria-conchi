@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Users, Settings, LogOut, Plus, Edit2, Trash2, Lock, X, Upload, Save, Loader, ShoppingBag, Truck } from 'lucide-react';
-import { getProducts, createProduct, deleteProduct, updateProduct, uploadImage, getOrders, updateOrderStatus, getAcademySettings, updateAcademySettings, getSubscribers, getAcademyVideos, createAcademyVideo, updateAcademyVideo, deleteAcademyVideo, getShippingZones, updateShippingZone, triggerClassReminder } from '../lib/productService';
+import { Package, Users, Settings, LogOut, Plus, Edit2, Trash2, Lock, X, Upload, Save, Loader, ShoppingBag, Truck, Search, Copy, Check, AlertTriangle } from 'lucide-react';
+import { getProducts, createProduct, deleteProduct, updateProduct, uploadImage, getOrders, updateOrderStatus, getAcademySettings, updateAcademySettings, getSubscribers, cancelSubscription, getAcademyVideos, createAcademyVideo, updateAcademyVideo, deleteAcademyVideo, getShippingZones, updateShippingZone, triggerClassReminder, getCategories, createCategory, deleteCategory } from '../lib/productService';
 import { supabase } from '../lib/supabase';
 
 const Admin = () => {
@@ -28,6 +28,8 @@ const Admin = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [ordersLoading, setOrdersLoading] = useState(true);
+    const [orderFilter, setOrderFilter] = useState('Todos');
+    const [searchQuery, setSearchQuery] = useState('');
     const [subscribers, setSubscribers] = useState([]);
     const [subscribersLoading, setSubscribersLoading] = useState(true);
     const [videos, setVideos] = useState([]);
@@ -41,13 +43,25 @@ const Admin = () => {
         stripePaymentLink: '',
         subscriptionPrice: '9.99',
         subscriptionFeatures: '',
-        maxSubscribers: '0'
+        maxSubscribers: '0',
+        calendarText: ''
     });
     const [settingsSaving, setSettingsSaving] = useState(false);
     const [settingsSaved, setSettingsSaved] = useState(false);
     const [settingsError, setSettingsError] = useState('');
     const [isReminding, setIsReminding] = useState(false);
     const [remindMsg, setRemindMsg] = useState({ text: '', type: '' });
+
+    // Categories State
+    const [categories, setCategories] = useState([]);
+    const [categoriesLoading, setCategoriesLoading] = useState(true);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [isSavingCategory, setIsSavingCategory] = useState(false);
+
+    // Substitution Cancellation Modal State
+    const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+    const [subToCancel, setSubToCancel] = useState({ id: null, name: '', redsysId: '' });
+    const [copySuccess, setCopySuccess] = useState(false);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -73,6 +87,21 @@ const Admin = () => {
     });
 
     useEffect(() => {
+        const checkExistingSession = async () => {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (!error && session?.user?.email === 'web.merakiartesano@gmail.com') {
+                setIsAuthenticated(true);
+                fetchProducts();
+                fetchOrders();
+                fetchAcademy();
+                fetchSubscribersData();
+                fetchVideosData();
+                fetchShippingZonesData();
+                fetchCategoriesData();
+            }
+        };
+        checkExistingSession();
+
         // Escuchamos por si venimos de un enlace de recuperación de contraseña
         const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (event === 'PASSWORD_RECOVERY') {
@@ -110,6 +139,7 @@ const Admin = () => {
             fetchSubscribersData();
             fetchVideosData();
             fetchShippingZonesData();
+            fetchCategoriesData();
         } catch (error) {
             console.error("Login error:", error);
             setLoginError(error.message === 'Invalid login credentials' ? 'Credenciales incorrectas.' : error.message);
@@ -187,6 +217,29 @@ const Admin = () => {
         }
     };
 
+    const handleCancelClick = (userId, firstName, redsysId) => {
+        setSubToCancel({ id: userId, name: firstName, redsysId: redsysId || 'No disponible' });
+        setIsCancelModalOpen(true);
+    };
+
+    const confirmCancellation = async () => {
+        try {
+            await cancelSubscription(subToCancel.id);
+            setIsCancelModalOpen(false);
+            fetchSubscribersData();
+            // Show a small success pulse or alert on the dashboard if needed, 
+            // but for now we'll just close and refresh.
+        } catch (error) {
+            alert("Error al revocar el acceso: " + error.message);
+        }
+    };
+
+    const handleCopyID = (id) => {
+        navigator.clipboard.writeText(id);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
+
     const fetchVideosData = async () => {
         setVideosLoading(true);
         try {
@@ -234,6 +287,45 @@ const Admin = () => {
         }
     };
 
+    const fetchCategoriesData = async () => {
+        setCategoriesLoading(true);
+        try {
+            const data = await getCategories();
+            setCategories(data || []);
+        } catch (error) {
+            console.error("Error fetching categories:", error);
+        } finally {
+            setCategoriesLoading(false);
+        }
+    };
+
+    const handleAddCategory = async (e) => {
+        e.preventDefault();
+        if (!newCategoryName.trim()) return;
+        setIsSavingCategory(true);
+        try {
+            await createCategory(newCategoryName.trim());
+            setNewCategoryName('');
+            fetchCategoriesData();
+        } catch (error) {
+            console.error("Error adding category:", error);
+            alert("Error al añadir la categoría. Tal vez ya exista.");
+        } finally {
+            setIsSavingCategory(false);
+        }
+    };
+
+    const handleDeleteCategory = async (id) => {
+        if (!window.confirm("¿Seguro que quieres borrar esta categoría? Los productos que la usan podrían no filtrarse correctamente en la tienda.")) return;
+        try {
+            await deleteCategory(id);
+            fetchCategoriesData();
+        } catch (error) {
+            console.error("Error deleting category:", error);
+            alert("No se pudo borrar la categoría.");
+        }
+    };
+
     const fetchAcademy = async () => {
         try {
             const data = await getAcademySettings();
@@ -245,7 +337,8 @@ const Admin = () => {
                     stripePaymentLink: data.stripe_payment_link || '',
                     subscriptionPrice: data.subscription_price?.toString() || '9.99',
                     subscriptionFeatures: data.subscription_features || '',
-                    maxSubscribers: data.max_subscribers?.toString() || '0'
+                    maxSubscribers: data.max_subscribers?.toString() || '0',
+                    calendarText: data.calendar_text || ''
                 });
             }
         } catch (error) {
@@ -319,7 +412,7 @@ const Admin = () => {
             setEditingProduct(null);
             setFormData({
                 name: '',
-                category: 'Lanas e Hilos',
+                category: categories.length > 0 ? categories[0].name : '',
                 price: '',
                 image_url: '',
                 is_new: false,
@@ -643,8 +736,8 @@ const Admin = () => {
                     <>
                         <header className="admin-header">
                             <div>
-                                <h1 className="admin-title">Gestión de Inventario</h1>
-                                <p className="admin-subtitle">Administra los productos del escaparate online.</p>
+                                <h1 className="admin-title">Gestión de Inventario y Categorías</h1>
+                                <p className="admin-subtitle">Administra los productos y las categorías del escaparate online.</p>
                             </div>
                             <button onClick={() => handleOpenModal()} className="btn btn-primary d-flex align-center gap-sm">
                                 <Plus size={18} /> Nuevo Producto
@@ -691,6 +784,48 @@ const Admin = () => {
                                 </table>
                             </div>
                         </div>
+
+                        <div style={{ marginBottom: '3rem', marginTop: '3rem' }}>
+                            <h2 style={{ color: 'var(--color-primary)', fontSize: '1.4rem', marginBottom: '1.5rem', borderBottom: '2px solid #e2e8f0', paddingBottom: '0.5rem' }}>Categorías de Productos</h2>
+                            
+                            <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '10px', marginBottom: '20px', maxWidth: '500px' }}>
+                                <input
+                                    type="text"
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    placeholder="Nueva categoría..."
+                                    style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                    required
+                                />
+                                <button type="submit" disabled={isSavingCategory} className="btn btn-primary d-flex align-center gap-sm" style={{ padding: '0 16px' }}>
+                                    {isSavingCategory ? <Loader size={18} className="animate-spin" /> : <Plus size={18} />} Añadir
+                                </button>
+                            </form>
+
+                            {categoriesLoading ? (
+                                <div style={{ padding: '2rem', textAlign: 'center' }}>
+                                    <Loader size={24} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
+                                </div>
+                            ) : categories.length === 0 ? (
+                                <p style={{ color: '#64748b' }}>No hay categorías. Crea una ahora.</p>
+                            ) : (
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '500px' }}>
+                                    {categories.map(cat => (
+                                        <li key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                                            <span style={{ fontWeight: '500', color: '#1e293b' }}>{cat.name}</span>
+                                            <button 
+                                                onClick={() => handleDeleteCategory(cat.id)}
+                                                className="btn-icon-small" 
+                                                style={{ color: '#ef4444', backgroundColor: '#fee2e2' }}
+                                                title="Eliminar Categoría"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     </>
                 )}
 
@@ -703,16 +838,96 @@ const Admin = () => {
                             </div>
                         </header>
 
+                        {/* PANEL DE FILTROS Y BÚSQUEDA */}
+                        <div className="admin-card" style={{ padding: '20px', marginBottom: '24px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                {/* Barra de búsqueda */}
+                                <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }}>
+                                    <div style={{ position: 'absolute', top: '50%', left: '16px', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                                        <Search size={20} />
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Buscar por nombre, correo, teléfono o ID de pedido..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        style={{ 
+                                            width: '100%', 
+                                            padding: '14px 20px 14px 45px', 
+                                            borderRadius: '8px', 
+                                            border: '1px solid #cbd5e1',
+                                            fontSize: '1rem',
+                                            backgroundColor: '#f8fafc',
+                                            outline: 'none',
+                                            transition: 'all 0.2s',
+                                        }}
+                                        onFocus={(e) => { e.target.style.borderColor = 'var(--color-primary)'; e.target.style.backgroundColor = '#fff'; }}
+                                        onBlur={(e) => { e.target.style.borderColor = '#cbd5e1'; e.target.style.backgroundColor = '#f8fafc'; }}
+                                    />
+                                </div>
+
+                                {/* Filtros de Estado */}
+                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '500', marginRight: '5px' }}>Filtrar por estado:</span>
+                                    {['Todos', 'Pendiente', 'Pagado', 'Enviado', 'Cancelado'].map(status => (
+                                        <button
+                                            key={status}
+                                            onClick={() => setOrderFilter(status)}
+                                            style={{
+                                                padding: '6px 16px',
+                                                borderRadius: '30px',
+                                                border: '1px solid ' + (orderFilter === status ? 'var(--color-primary)' : '#e2e8f0'),
+                                                backgroundColor: orderFilter === status ? 'var(--color-primary)' : '#fff',
+                                                color: orderFilter === status ? '#fff' : '#64748b',
+                                                fontWeight: '600',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease',
+                                                fontSize: '0.85rem',
+                                                boxShadow: orderFilter === status ? '0 4px 10px rgba(22, 163, 74, 0.2)' : 'none'
+                                            }}
+                                        >
+                                            {status === 'Todos' ? 'Todos' :
+                                             status === 'Pendiente' ? 'Pendientes' :
+                                             status === 'Pagado' ? 'Para Enviar' :
+                                             status === 'Enviado' ? 'Enviados' : 'Cancelados'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="admin-card">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                                 {ordersLoading ? (
                                     <div className="text-center" style={{ padding: '3rem' }}>
                                         <Loader className="animate-spin" size={32} style={{ color: 'var(--color-primary)', margin: '0 auto' }} />
                                     </div>
-                                ) : orders.length === 0 ? (
-                                    <div className="text-center" style={{ padding: '3rem', color: '#718096' }}>Todavía no hay pedidos registrados.</div>
-                                ) : (
-                                    orders.map((order) => {
+                                ) : (() => {
+                                    // Local filter logic
+                                    const filteredList = orders.filter(o => {
+                                        const matchesStatus = orderFilter === 'Todos' || o.status === orderFilter;
+                                        const searchLower = searchQuery.toLowerCase();
+                                        const matchesSearch = !searchLower || (
+                                            (o.id && o.id.toLowerCase().includes(searchLower)) ||
+                                            (o.customer_name && o.customer_name.toLowerCase().includes(searchLower)) ||
+                                            (o.customer_email && o.customer_email.toLowerCase().includes(searchLower)) ||
+                                            (o.customer_phone && o.customer_phone.toLowerCase().includes(searchLower)) ||
+                                            (o.shipping_address?.phone && o.shipping_address.phone.toLowerCase().includes(searchLower))
+                                        );
+                                        return matchesStatus && matchesSearch;
+                                    });
+
+                                    if (filteredList.length === 0) {
+                                        return (
+                                            <div className="text-center" style={{ padding: '3rem', color: '#718096' }}>
+                                                <Search size={48} style={{ margin: '0 auto 15px', color: '#cbd5e1', opacity: 0.5 }} />
+                                                <p style={{ margin: 0, fontSize: '1.1rem', fontWeight: '500' }}>No se encontraron pedidos</p>
+                                                <p style={{ margin: '5px 0 0', fontSize: '0.9rem' }}>Prueba con otros filtros o términos de búsqueda.</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return filteredList.map((order) => {
                                         const d = new Date(order.created_at);
                                         const subtotal = order.order_items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
                                         const shippingCost = order.total_amount - subtotal;
@@ -785,10 +1000,11 @@ const Admin = () => {
                                                         <div style={{ backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '0.9rem', color: '#334155', lineHeight: '1.5' }}>
                                                             <strong style={{ color: '#0f172a', display: 'block', fontSize: '1rem', marginBottom: '4px' }}>{order.customer_name}</strong>
                                                             <div><a href={`mailto:${order.customer_email}`} style={{ color: 'var(--color-primary)' }}>{order.customer_email}</a></div>
-                                                            {order.customer_phone && <div style={{ marginBottom: '8px' }}>Tel: {order.customer_phone}</div>}
+                                                            {(order.customer_phone || order.shipping_address?.phone) && <div style={{ marginBottom: '8px' }}>Tel: {order.customer_phone || order.shipping_address?.phone}</div>}
 
                                                             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #cbd5e1' }}>
                                                                 <div>{order.shipping_address?.line1}</div>
+                                                                {order.shipping_address?.line2 && <div>{order.shipping_address?.line2}</div>}
                                                                 <div>{order.shipping_address?.postal_code} - {order.shipping_address?.city}</div>
                                                                 <div style={{ fontWeight: '600' }}>{order.shipping_address?.state || order.shipping_address?.country}</div>
                                                             </div>
@@ -816,7 +1032,7 @@ const Admin = () => {
                                             </div>
                                         );
                                     })
-                                )}
+                                })()}
                             </div>
                         </div>
                     </>
@@ -875,27 +1091,34 @@ const Admin = () => {
                                         />
                                         <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>0 = Plazas Ilimitadas.</p>
                                     </div>
-                                    <div className="input-group">
-                                        <label>Enlace de Pago de Stripe</label>
-                                        <input
-                                            type="url"
-                                            value={academySettings.stripePaymentLink}
-                                            onChange={(e) => setAcademySettings({ ...academySettings, stripePaymentLink: e.target.value })}
-                                            placeholder="https://buy.stripe.com/..."
-                                        />
-                                        <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Enlace para suscribirse.</p>
-                                    </div>
+
                                 </div>
 
-                                <div className="input-group" style={{ marginTop: '1.5rem' }}>
-                                    <label>¿Qué incluye la suscripción? (una línea = un beneficio)</label>
-                                    <textarea
-                                        rows="6"
-                                        value={academySettings.subscriptionFeatures}
-                                        onChange={(e) => setAcademySettings({ ...academySettings, subscriptionFeatures: e.target.value })}
-                                        placeholder={"Clases en directo semanales por Zoom\nAcceso a todos los materiales del proyecto\nResolución de dudas en tiempo real\nComunidad privada de alumnas"}
-                                    />
-                                    <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Cada línea será un ✓ en la página pública.</p>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+                                    <div className="form-group grid-col-span-2">
+                                        <label className="form-label">Características (una por línea)</label>
+                                        <textarea
+                                            className="form-input"
+                                            rows="5"
+                                            value={academySettings.subscriptionFeatures}
+                                            onChange={(e) => setAcademySettings({ ...academySettings, subscriptionFeatures: e.target.value })}
+                                        ></textarea>
+                                        <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Cada línea será un ✓ en la página pública.</p>
+                                    </div>
+
+                                    <div className="form-group grid-col-span-2">
+                                        <label className="form-label">Calendario Mensual (Editable)</label>
+                                        <textarea
+                                            className="form-input"
+                                            rows="6"
+                                            value={academySettings.calendarText}
+                                            onChange={(e) => setAcademySettings({ ...academySettings, calendarText: e.target.value })}
+                                            placeholder="Ej: Día 1 al 5 -> Preparación de kits..."
+                                        ></textarea>
+                                        <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '5px' }}>
+                                            Usa este cuadro para actualizar la programación que ven las alumnas.
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <div className="input-group" style={{ marginTop: '1.5rem' }}>
@@ -1056,20 +1279,61 @@ const Admin = () => {
                                                                 {isActive ? '✅ Activa' : (sub?.status ?? 'Sin suscripción')}
                                                             </span>
                                                         </td>
-                                                        <td style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-                                                            {sub?.current_period_end 
-                                                                ? new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleDateString('es-ES') 
-                                                                : '—'}
+                                                        <td style={{ color: '#94a3b8', fontSize: '0.9rem', position: 'relative' }}>
+                                                            <span>
+                                                                {sub?.current_period_end 
+                                                                    ? new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleDateString('es-ES') 
+                                                                    : '—'}
+                                                            </span>
+                                                            {isActive && (
+                                                                <button 
+                                                                    onClick={() => handleCancelClick(user.id, user.first_name, sub.redsys_order_id)}
+                                                                    style={{ 
+                                                                        display: 'block', 
+                                                                        marginTop: '6px', 
+                                                                        fontSize: '0.75rem', 
+                                                                        color: '#ef4444', 
+                                                                        background: 'none', 
+                                                                        border: '1px solid #fee2e2', 
+                                                                        padding: '2px 8px', 
+                                                                        borderRadius: '12px',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                    title="Quitar acceso a la alumna"
+                                                                >
+                                                                    🗑️ Dar de Baja
+                                                                </button>
+                                                            )}
                                                         </td>
                                                         <td>
                                                             {sub?.shipping_details ? (
-                                                                <button 
+                                                                 <button 
                                                                     onClick={() => { setSelectedSubShipping(sub.shipping_details); setIsShippingModalOpen(true); }}
                                                                     className="btn-icon-small" 
-                                                                    style={{ color: 'var(--color-primary)', backgroundColor: 'var(--color-primary-light)' }} 
-                                                                    title="Ver Dirección de Envío"
+                                                                    style={{ 
+                                                                        color: sub.shipping_details.pickup_pref ? '#0284c7' : 'var(--color-primary)', 
+                                                                        backgroundColor: sub.shipping_details.pickup_pref ? '#f0f9ff' : 'var(--color-primary-light)',
+                                                                        width: 'auto',
+                                                                        padding: '4px 12px',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '6px',
+                                                                        borderRadius: '20px',
+                                                                        border: `1px solid ${sub.shipping_details.pickup_pref ? '#bae6fd' : 'rgba(235, 137, 31, 0.2)'}`
+                                                                    }} 
+                                                                    title="Ver detalles de entrega"
                                                                 >
-                                                                    <Truck size={18} />
+                                                                    {sub.shipping_details.pickup_pref ? (
+                                                                        <>
+                                                                            <ShoppingBag size={16} />
+                                                                            <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>Recogida en Tienda</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Truck size={16} />
+                                                                            <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>Envío a Domicilio</span>
+                                                                        </>
+                                                                    )}
                                                                 </button>
                                                             ) : (
                                                                 <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>No disp.</span>
@@ -1205,10 +1469,9 @@ const Admin = () => {
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                                         className="admin-select"
                                     >
-                                        <option value="Lanas e Hilos">Lanas e Hilos</option>
-                                        <option value="Telas">Telas</option>
-                                        <option value="Mercería">Mercería</option>
-                                        <option value="Accesorios">Accesorios</option>
+                                        {categories.map(c => (
+                                            <option key={c.id} value={c.name}>{c.name}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="input-group" style={{ display: 'flex', alignItems: 'center', paddingTop: '28px', gap: '12px' }}>
@@ -1347,7 +1610,13 @@ const Admin = () => {
                 <div className="admin-modal-overlay">
                     <div className="admin-modal" style={{ maxWidth: '500px' }}>
                         <div className="modal-header">
-                            <h3><Truck size={20} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> Datos de Envío (Kit Sorpresa)</h3>
+                            <h3>
+                                {selectedSubShipping.pickup_pref ? (
+                                    <><ShoppingBag size={20} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> Detalles de Recogida</>
+                                ) : (
+                                    <><Truck size={20} style={{ verticalAlign: 'middle', marginRight: '8px' }} /> Datos de Envío (Kit Sorpresa)</>
+                                )}
+                            </h3>
                             <button onClick={() => setIsShippingModalOpen(false)} className="btn-icon-small"><X size={20} /></button>
                         </div>
                         <div className="modal-body">
@@ -1360,17 +1629,109 @@ const Admin = () => {
                                     <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Teléfono de Contacto</label>
                                     <div style={{ fontSize: '1.1rem', color: '#1e293b' }}>{selectedSubShipping.phone}</div>
                                 </div>
-                                <div style={{ marginBottom: '15px' }}>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Dirección de Entrega</label>
-                                    <div style={{ fontSize: '1.1rem', color: '#1e293b', lineHeight: '1.5' }}>
-                                        {selectedSubShipping.line1}<br />
-                                        {selectedSubShipping.postal_code} {selectedSubShipping.city}<br />
-                                        {selectedSubShipping.state}, {selectedSubShipping.country}
+                                {selectedSubShipping.pickup_pref ? (
+                                    <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                                        <div style={{ color: '#0284c7', fontWeight: 'bold', fontSize: '1.2rem', marginBottom: '8px' }}>🛍️ RECOGIDA EN TIENDA</div>
+                                        <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>La alumna vendrá a la tienda a por su Kit.</p>
                                     </div>
-                                </div>
+                                ) : (
+                                    <div style={{ marginBottom: '15px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold' }}>Dirección de Entrega</label>
+                                        <div style={{ fontSize: '1.1rem', color: '#1e293b', lineHeight: '1.5' }}>
+                                            {selectedSubShipping.line1 || 'No especificada'}<br />
+                                            {selectedSubShipping.postal_code} {selectedSubShipping.city}<br />
+                                            {selectedSubShipping.state}, {selectedSubShipping.country}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div style={{ marginTop: '20px', textAlign: 'center' }}>
                                 <button onClick={() => setIsShippingModalOpen(false)} className="btn btn-primary" style={{ width: '100%' }}>Cerrar Detalles</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* --- MODAL CONFIRMACIÓN BAJA ACADEMIA --- */}
+            {isCancelModalOpen && (
+                <div className="admin-modal-overlay">
+                    <div className="admin-modal" style={{ maxWidth: '450px', padding: '0' }}>
+                        <div style={{ backgroundColor: '#ef4444', padding: '30px 20px', textAlign: 'center', color: 'white', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
+                            <AlertTriangle size={48} style={{ marginBottom: '15px' }} />
+                            <h3 style={{ margin: 0, fontSize: '1.25rem' }}>⚠️ AVISO MUY IMPORTANTE ⚠️</h3>
+                        </div>
+                        
+                        <div className="modal-body" style={{ padding: '25px' }}>
+                            <p style={{ margin: '0 0 20px 0', fontSize: '1rem', lineHeight: '1.5', color: '#1e293b' }}>
+                                ¿Estás segura de revocar el acceso a la academia para la alumna <strong>{subToCancel.name}</strong>?
+                            </p>
+                            
+                            <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                                <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#9a3412', fontWeight: 'bold' }}>
+                                    Recuerda: Esto NO cancela el cobro en el banco.
+                                </p>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#c2410c' }}>
+                                    Debes entrar al Panel de Redsys y dar de baja la suscripción manualmente con este ID:
+                                </p>
+                                
+                                <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between', 
+                                    marginTop: '10px', 
+                                    backgroundColor: 'white', 
+                                    padding: '8px 12px', 
+                                    borderRadius: '6px', 
+                                    border: '1px solid #fed7aa' 
+                                }}>
+                                    <code style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '600' }}>{subToCancel.redsysId}</code>
+                                    <button 
+                                        onClick={() => handleCopyID(subToCancel.redsysId)}
+                                        style={{ 
+                                            background: copySuccess ? '#22c55e' : 'var(--color-primary)', 
+                                            color: 'white', 
+                                            border: 'none', 
+                                            padding: '4px 10px', 
+                                            borderRadius: '4px', 
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontSize: '0.75rem',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {copySuccess ? <Check size={14} /> : <Copy size={14} />}
+                                        {copySuccess ? '¡Copiado!' : 'Copiar ID'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p style={{ margin: '0 0 25px 0', fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
+                                Una vez confirmes aquí, la alumna dejará de tener acceso a los contenidos de la academia inmediatamente.
+                            </p>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <button 
+                                    onClick={() => setIsCancelModalOpen(false)} 
+                                    className="btn btn-secondary"
+                                    style={{ width: '100%', margin: 0 }}
+                                >
+                                    No, Volver
+                                </button>
+                                <button 
+                                    onClick={confirmCancellation} 
+                                    className="btn" 
+                                    style={{ 
+                                        width: '100%', 
+                                        margin: 0, 
+                                        backgroundColor: '#ef4444', 
+                                        color: 'white',
+                                        border: 'none'
+                                    }}
+                                >
+                                    Sí, Revocar Acceso
+                                </button>
                             </div>
                         </div>
                     </div>

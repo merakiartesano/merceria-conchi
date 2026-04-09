@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Test Redsys - Sandbox</title>
+<style>
+  body { font-family: sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+  pre { background: #f4f4f4; padding: 15px; overflow: auto; font-size: 12px; }
+  button { background: #e88c17; color: white; padding: 15px 30px; font-size: 16px; border: none; 
+           border-radius: 8px; cursor: pointer; margin-top: 20px; }
+  button:hover { background: #c97800; }
+  .label { color: #666; font-size: 13px; }
+  .value { font-weight: bold; word-break: break-all; }
+</style>
+</head>
+<body>
+  <h1>🔑 Test TPV Redsys Sandbox</h1>
+  <p><strong>Comercio:</strong> 999008881 | Terminal: 1</p>
+  <p><strong>Pedido:</strong> 775659280091 | <strong>Importe:</strong> 6,90€</p>
+  
+  <h3>Parámetros que se envían:</h3>
+  <p class="label">Ds_MerchantParameters (Base64):</p>
+  <pre>eyJEU19NRVJDSEFOVF9BTU9VTlQiOiI2OTAiLCJEU19NRVJDSEFOVF9PUkRFUiI6Ijc3NTY1OTI4MDA5MSIsIkRTX01FUkNIQU5UX01FUkNIQU5UQ09ERSI6Ijk5OTAwODg4MSIsIkRTX01FUkNIQU5UX0NVUlJFTkNZIjoiOTc4IiwiRFNfTUVSQ0hBTlRfVFJBTlNBQ1RJT05UWVBFIjoiMCIsIkRTX01FUkNIQU5UX1RFUk1JTkFMIjoiMSIsIkRTX01FUkNIQU5UX01FUkNIQU5UVVJMIjoiaHR0cHM6Ly9idGtxZ2V1c29mZnF4dGtoZ3hveS5zdXBhYmFzZS5jby9mdW5jdGlvbnMvdjEvcmVkc3lzLW5vdGlmaWNhdGlvbiIsIkRTX01FUkNIQU5UX1VSTE9LIjoiaHR0cHM6Ly9tZXJjZXJpYS1jb25jaGkudmVyY2VsLmFwcC9wYWdvLW9rIiwiRFNfTUVSQ0hBTlRfVVJMS08iOiJodHRwczovL21lcmNlcmlhLWNvbmNoaS52ZXJjZWwuYXBwL3BhZ28ta28iLCJEU19NRVJDSEFOVF9QUk9EVUNUREVTQ1JJUFRJT04iOiJUZXN0IHBhZ28gc2FuZGJveCJ9</pre>
+  <p class="label">Ds_Signature (Base64Url):</p>
+  <pre>jxgFzuBBrytwYP6801f3SqVM/vfouYlSAbYixVYej3o=</pre>
+  <p class="label">JSON decodificado:</p>
+  <pre>{
+  "DS_MERCHANT_AMOUNT": "690",
+  "DS_MERCHANT_ORDER": "775659280091",
+  "DS_MERCHANT_MERCHANTCODE": "999008881",
+  "DS_MERCHANT_CURRENCY": "978",
+  "DS_MERCHANT_TRANSACTIONTYPE": "0",
+  "DS_MERCHANT_TERMINAL": "1",
+  "DS_MERCHANT_MERCHANTURL": "https://btkqgeusoffqxtkhgxoy.supabase.co/functions/v1/redsys-notification",
+  "DS_MERCHANT_URLOK": "https://merceria-conchi.vercel.app/pago-ok",
+  "DS_MERCHANT_URLKO": "https://merceria-conchi.vercel.app/pago-ko",
+  "DS_MERCHANT_PRODUCTDESCRIPTION": "Test pago sandbox"
+}</pre>
+  
+  <form method="POST" action="https://sis-t.redsys.es:25443/sis/realizarPago">
+    <input type="hidden" name="Ds_SignatureVersion"    value="HMAC_SHA256_V1">
+    <input type="hidden" name="Ds_MerchantParameters" value="eyJEU19NRVJDSEFOVF9BTU9VTlQiOiI2OTAiLCJEU19NRVJDSEFOVF9PUkRFUiI6Ijc3NTY1OTI4MDA5MSIsIkRTX01FUkNIQU5UX01FUkNIQU5UQ09ERSI6Ijk5OTAwODg4MSIsIkRTX01FUkNIQU5UX0NVUlJFTkNZIjoiOTc4IiwiRFNfTUVSQ0hBTlRfVFJBTlNBQ1RJT05UWVBFIjoiMCIsIkRTX01FUkNIQU5UX1RFUk1JTkFMIjoiMSIsIkRTX01FUkNIQU5UX01FUkNIQU5UVVJMIjoiaHR0cHM6Ly9idGtxZ2V1c29mZnF4dGtoZ3hveS5zdXBhYmFzZS5jby9mdW5jdGlvbnMvdjEvcmVkc3lzLW5vdGlmaWNhdGlvbiIsIkRTX01FUkNIQU5UX1VSTE9LIjoiaHR0cHM6Ly9tZXJjZXJpYS1jb25jaGkudmVyY2VsLmFwcC9wYWdvLW9rIiwiRFNfTUVSQ0hBTlRfVVJMS08iOiJodHRwczovL21lcmNlcmlhLWNvbmNoaS52ZXJjZWwuYXBwL3BhZ28ta28iLCJEU19NRVJDSEFOVF9QUk9EVUNUREVTQ1JJUFRJT04iOiJUZXN0IHBhZ28gc2FuZGJveCJ9">
+    <input type="hidden" name="Ds_Signature"          value="jxgFzuBBrytwYP6801f3SqVM/vfouYlSAbYixVYej3o=">
+    <button type="submit">🚀 Enviar al TPV Redsys (Sandbox)</button>
+  </form>
+  
+  <p style="color:#888; font-size:12px; margin-top:20px;">
+    Si Redsys muestra el formulario de tarjeta → la firma es CORRECTA.<br>
+    Si muestra SIS0042 → hay un problema de configuración en Redsys.
+  </p>
+</body>
+</html>

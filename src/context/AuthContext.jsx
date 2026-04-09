@@ -29,10 +29,10 @@ export const AuthProvider = ({ children }) => {
 
         // Escuchamos cambios de autenticacion (login, logout)
         const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
+            (_event, session) => {
                 setUser(session?.user ?? null);
                 if (session?.user) {
-                    await fetchSubscription(session.user.id);
+                    fetchSubscription(session.user.id);
                 } else {
                     setSubscription(null);
                     setLoading(false);

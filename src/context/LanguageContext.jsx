@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { es } from '../translations/es';
 import { en } from '../translations/en';
 import { fr } from '../translations/fr';
+import { pt } from '../translations/pt';
 
 const LanguageContext = createContext();
 
@@ -24,11 +25,12 @@ export const LanguageProvider = ({ children }) => {
         const dictionaries = {
             es: es,
             en: en,
-            fr: fr
+            fr: fr,
+            pt: pt
         };
 
         const dictionary = dictionaries[language] || dictionaries['es'];
-        return dictionary[key] || key; // Si no encuentra la clave, devuelve la clave misma
+        return (dictionary[key] !== undefined) ? dictionary[key] : key; 
     };
 
     return (
