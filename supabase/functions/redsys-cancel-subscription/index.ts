@@ -1,5 +1,5 @@
 // Edge Function: redsys-cancel-subscription
-// Cancela una suscripción gestionada por Redsys (Inactivación de Referencia)
+// Cancela una suscripción gestionada por Redsys (Inactivación de Referencia) vía API REST DIRECTA
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import forge from "npm:node-forge@1.3.1";
 
@@ -31,26 +31,30 @@ function deriveKey3DES(secretKeyB64: string, orderId: string): string {
 }
 
 /**
- * Genera la firma HMAC_SHA256_V1 de Redsys.
+ * Genera la firma HMAC_SHA256_V1 de Redsys para REST.
  */
-function generateRedsysSignature(
+function generateRedsysSignatureREST(
   secretKeyB64: string,
   orderId: string,
-  merchantParametersBase64: string
+  merchantParametersBase64Standard: string
 ): string {
   const derivedKey = deriveKey3DES(secretKeyB64, orderId);
   const hmac = forge.hmac.create();
   hmac.start("sha256", derivedKey);
-  hmac.update(merchantParametersBase64);
+  hmac.update(merchantParametersBase64Standard);
   const sigBytes = hmac.digest().getBytes();
-  return forge.util.encode64(sigBytes);
+  
+  return forge.util.encode64(sigBytes)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
-function encodeBase64Standard(str: string): string {
-  const encoder = new TextEncoder();
-  const bytes = encoder.encode(str);
-  const binString = String.fromCodePoint(...bytes);
-  return btoa(binString);
+function toURLSafe(base64: string): string {
+    return base64
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
 }
 
 Deno.serve(async (req: Request) => {
@@ -72,7 +76,11 @@ Deno.serve(async (req: Request) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // 1. Obtener la suscripción y el identificador de Redsys
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "No autorizado" }), { status: 401, headers: corsHeaders });
+    }
+
     const { data: sub, error: subError } = await supabaseAdmin
       .from("subscriptions")
       .select("*")
@@ -80,83 +88,74 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (subError || !sub || !sub.redsys_identifier) {
-      return new Response(JSON.stringify({ error: "No se encontró una suscripción activa con Redsys para este usuario" }), {
+      return new Response(JSON.stringify({ error: "Suscripción no encontrada" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const merchantCode = Deno.env.get("REDSYS_MERCHANT_CODE")?.trim() ?? "";
-    const terminal     = Deno.env.get("REDSYS_TERMINAL")?.trim() ?? "1";
-    const secretKey    = Deno.env.get("REDSYS_SECRET_KEY")?.trim() ?? "";
-    // El endpoint de gestión (REST/WebService) suele ser distinto del de pago redirect
-    // Para simplificar, usaremos el endpoint de operaciones (REST API requiere otro formato)
-    // Redsys permite "Baja de Referencia" via POST a /sis/operaciones
-    const redsysOpUrl  = "https://sis-t.redsys.es:25443/sis/operaciones"; 
+    const merchantCode  = Deno.env.get("REDSYS_MERCHANT_CODE")?.trim() ?? "";
+    const terminal      = Deno.env.get("REDSYS_TERMINAL")?.trim() ?? "1"; // Valor RAW del env
+    const secretKey     = Deno.env.get("REDSYS_SECRET_KEY")?.trim() ?? "";
 
     if (!merchantCode || !secretKey) {
-      return new Response(JSON.stringify({ error: "Variables Redsys no configuradas" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(JSON.stringify({ error: "Configuración incompleta" }), { status: 500, headers: corsHeaders });
     }
 
-    // Para la baja, Redsys pide TransactionType 'B' (Baja de referencia/Contrato)
-    // El DS_MERCHANT_ORDER para la baja de una suscripción puede ser uno nuevo o el original.
-    // Usaremos un timestamp para que sea único.
-    const cancelOrderId = "C" + Date.now().toString().slice(-11);
+    const redsysRestUrl = "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST"; 
+    const originalOrderId = sub.redsys_order_id;
+
+    if (!originalOrderId) {
+        throw new Error("No hay un ID de pedido original para cancelar");
+    }
 
     const merchantParams = {
-      DS_MERCHANT_AMOUNT:             "0", // 0 para baja
-      DS_MERCHANT_ORDER:              cancelOrderId,
+      DS_MERCHANT_AMOUNT:             "0", 
+      DS_MERCHANT_ORDER:              originalOrderId,
       DS_MERCHANT_MERCHANTCODE:       merchantCode,
       DS_MERCHANT_CURRENCY:           "978",
-      DS_MERCHANT_TRANSACTIONTYPE:    "B", // Baja de Referencia
+      DS_MERCHANT_TRANSACTIONTYPE:    "A", // Anulación
       DS_MERCHANT_TERMINAL:           terminal,
       DS_MERCHANT_IDENTIFIER:         sub.redsys_identifier
     };
 
     const paramsJson = JSON.stringify(merchantParams);
-    const paramsB64 = encodeBase64Standard(paramsJson);
-    const signature = generateRedsysSignature(secretKey, cancelOrderId, paramsB64);
+    const encoder = new TextEncoder();
+    const paramsB64Std = btoa(String.fromCodePoint(...encoder.encode(paramsJson)));
+    const signatureURLSafe = generateRedsysSignatureREST(secretKey, originalOrderId, paramsB64Std);
+    const paramsURLSafe = toURLSafe(paramsB64Std);
 
-    console.log("Enviando baja a Redsys:", { cancelOrderId, identifier: sub.redsys_identifier });
+    console.log(`Intentando baja REST: ${originalOrderId} (Terminal: ${terminal})`);
 
-    // Enviar petición POST a Redsys (Protocolo HTTP POST de Operaciones)
-    const response = await fetch(redsysOpUrl, {
+    const response = await fetch(redsysRestUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        Ds_MerchantParameters: paramsURLSafe,
         Ds_SignatureVersion: "HMAC_SHA256_V1",
-        Ds_MerchantParameters: paramsB64,
-        Ds_Signature: signature
+        Ds_Signature: signatureURLSafe
       })
     });
 
-    const respText = await response.text();
-    console.log("Respuesta de Redsys Baja:", respText);
+    const result = await response.json();
+    let dsResponseCode = "";
+    if (result.Ds_MerchantParameters) {
+        const decoded = JSON.parse(atob(result.Ds_MerchantParameters.replace(/-/g, "+").replace(/_/g, "/")));
+        dsResponseCode = decoded.Ds_Response;
+    }
 
-    // Redsys devuelve un XML o un HTML en este endpoint dependiendo de la config
-    // Pero si hemos llegado aquí sin crash, actualizamos el estado local
-    
-    // IMPORTANTE: En entorno de pruebas, a veces falla la API de operaciones si no está habilitada.
-    // Sin embargo, para que el usuario vea el cambio en la web:
-    await supabaseAdmin
-      .from("subscriptions")
-      .update({ status: 'cancelled' })
-      .eq("id", sub.id);
+    const isSuccess = dsResponseCode !== "" && parseInt(dsResponseCode) >= 0 && parseInt(dsResponseCode) <= 99;
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Suscripción cancelada correctamente",
-        redsysResponse: respText
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
+    if (isSuccess) {
+      await supabaseAdmin.from("subscriptions").update({ status: "cancelled" }).eq("user_id", userId);
+      return new Response(JSON.stringify({ success: true, message: "Cancelado con éxito" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } else {
+        return new Response(JSON.stringify({ 
+            success: false, 
+            error: `Error Banco: ${result.errorCode || dsResponseCode || "Firma incorrecta"}`,
+            canForce: true // <--- Indicamos al frontend que puede forzar la baja
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
   } catch (err: any) {
-    console.error("Error in redsys-cancel-subscription:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
   }
 });

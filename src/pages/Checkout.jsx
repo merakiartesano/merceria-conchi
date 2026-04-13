@@ -17,7 +17,7 @@ const Checkout = () => {
     const { user } = useAuth();
 
     const isSubscription = location.search.includes('type=subscription') || location.state?.isSubscription;
-    const subscriptionPrice = location.state?.price || 32;
+    const [subscriptionPrice, setSubscriptionPrice] = useState(location.state?.price || 32);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -74,9 +74,27 @@ const Checkout = () => {
             }
         };
 
+        const fetchAcademyPrice = async () => {
+            if (isSubscription) {
+                try {
+                    const { data } = await supabase
+                        .from('academy_settings')
+                        .select('subscription_price')
+                        .eq('id', 1)
+                        .maybeSingle();
+                    if (data?.subscription_price) {
+                        setSubscriptionPrice(parseFloat(data.subscription_price));
+                    }
+                } catch (err) {
+                    console.error("Error fetching academy price in checkout:", err);
+                }
+            }
+        };
+
         fetchZones();
         fetchUserProfile();
-    }, [user]);
+        fetchAcademyPrice();
+    }, [user, isSubscription]);
 
     const subtotal = getCartTotal();
 

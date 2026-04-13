@@ -37,7 +37,7 @@ const Clases = () => {
             try {
                 const { data } = await supabase
                     .from('academy_settings')
-                    .select('stripe_payment_link, subscription_price, max_subscribers')
+                    .select('subscription_price, max_subscribers')
                     .eq('id', 1)
                     .maybeSingle();
                 setSettings(data);
@@ -70,7 +70,12 @@ const Clases = () => {
         } else if (hasActiveSubscription) {
             navigate('/academia');
         } else {
-            navigate('/checkout?type=subscription');
+            navigate('/checkout?type=subscription', { 
+                state: { 
+                    isSubscription: true, 
+                    price: parseFloat(settings?.subscription_price) || 32 
+                } 
+            });
         }
     };
 
@@ -261,28 +266,80 @@ const Clases = () => {
                             <li style={{ display: 'flex', gap: '12px', alignItems: 'center' }}><Gift size={22} color="#f59e0b" style={{ flexShrink: 0 }} /> <span style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{t('clases.pricing.inc7')}</span></li>
                         </ul>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '2rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+                            {/* Visual Calendar Content */}
                             <div>
-                                <h4 style={{ margin: '0 0 15px', color: '#38bdf8', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {t('clases.pricing.cal.title')}
+                                <h4 style={{ margin: '0 0 20px', color: '#38bdf8', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700' }}>
+                                    <Video size={20} /> {t('clases.pricing.cal.title')}
                                 </h4>
-                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.8 }}>
-                                    <li>{t('clases.pricing.cal.li1')}</li>
-                                    <li>{t('clases.pricing.cal.li2')}</li>
-                                    <li>{t('clases.pricing.cal.li3')}</li>
-                                    <li>{t('clases.pricing.cal.li4')}</li>
-                                </ul>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                                    {[
+                                        { range: t('clases.pricing.cal.li1').split(' → ')[0], text: t('clases.pricing.cal.li1').split(' → ')[1], icon: '📦' },
+                                        { range: t('clases.pricing.cal.li2').split(' → ')[0], text: t('clases.pricing.cal.li2').split(' → ')[1], icon: '🚚' },
+                                        { range: t('clases.pricing.cal.li3').split(' → ')[0], text: t('clases.pricing.cal.li3').split(' → ')[1], icon: '🎥' },
+                                        { range: t('clases.pricing.cal.li4').split(' → ')[0], text: t('clases.pricing.cal.li4').split(' → ')[1], icon: '📼' }
+                                    ].map((item, idx) => (
+                                        <div key={idx} style={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: '15px', 
+                                            backgroundColor: 'rgba(255,255,255,0.03)', 
+                                            padding: '12px 20px', 
+                                            borderRadius: '16px',
+                                            border: '1px solid rgba(255,255,255,0.05)'
+                                        }}>
+                                            <span style={{ fontSize: '1.5rem' }}>{item.icon}</span>
+                                            <div>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.range}</div>
+                                                <div style={{ fontSize: '1rem', color: '#e2e8f0' }}>{item.text}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div>
-                                <h4 style={{ margin: '0 0 15px', color: '#38bdf8', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    {t('clases.pricing.diff.title')}
+
+                            {/* Subscription Rules / Cutoff Explanation */}
+                            <div style={{ 
+                                backgroundColor: 'rgba(56, 189, 248, 0.05)', 
+                                padding: '2rem', 
+                                borderRadius: '24px', 
+                                border: '1px dashed rgba(56, 189, 248, 0.3)',
+                                position: 'relative',
+                                overflow: 'hidden'
+                            }}>
+                                <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.1 }}>
+                                    <Sparkles size={80} color="#38bdf8" />
+                                </div>
+                                <h4 style={{ margin: '0 0 1rem', color: 'white', fontSize: '1.2rem', fontWeight: '700' }}>
+                                    {t('clases.rules.title')}
                                 </h4>
-                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: '#cbd5e1', fontSize: '1rem', lineHeight: 1.8 }}>
-                                    <li>{t('clases.pricing.diff.li1')}</li>
-                                    <li>{t('clases.pricing.diff.li2')}</li>
-                                    <li>{t('clases.pricing.diff.li3')}</li>
-                                    <li>{t('clases.pricing.diff.li4')}</li>
-                                    <li>{t('clases.pricing.diff.li5')}</li>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.95rem', color: '#cbd5e1', lineHeight: 1.6 }}>
+                                    <p style={{ margin: 0 }}>{t('clases.rules.p2')}</p>
+                                    <p style={{ margin: 0 }}>{t('clases.rules.p3')}</p>
+                                    <div style={{ 
+                                        marginTop: '0.5rem',
+                                        padding: '12px 16px', 
+                                        backgroundColor: 'rgba(0,0,0,0.2)', 
+                                        borderRadius: '12px',
+                                        fontSize: '0.9rem',
+                                        borderLeft: '3px solid #38bdf8',
+                                        fontStyle: 'italic'
+                                    }}>
+                                        {t('clases.rules.example')}
+                                    </div>
+                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', opacity: 0.8 }}>{t('clases.rules.cancel')}</p>
+                                </div>
+                            </div>
+
+                            {/* Our Difference (Restored & Polished) */}
+                            <div>
+                                <h4 style={{ margin: '0 0 15px', color: '#38bdf8', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
+                                    <Star size={20} /> {t('clases.pricing.diff.title')}
+                                </h4>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: '#cbd5e1', fontSize: '0.95rem', lineHeight: 1.8, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.5rem 1.5rem' }}>
+                                    {[1, 2, 3, 4, 5].map(i => (
+                                        <li key={i}>{t(`clases.pricing.diff.li${i}`)}</li>
+                                    ))}
                                 </ul>
                             </div>
                         </div>
@@ -301,29 +358,38 @@ const Clases = () => {
                                 overflow: 'hidden',
                                 boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
                             }}>
-                                <div style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))', padding: '16px', textAlign: 'center', color: 'white', fontWeight: 'bold', letterSpacing: '1px' }}>
-                                    {t('clases.card.badge')}
-                                </div>
+                                <div style={{ height: '20px' }} />
                                 <div style={{ padding: 'clamp(2rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem)', textAlign: 'center' }}>
                                     <h3 style={{ fontSize: '1.6rem', margin: '0 0 15px', color: 'var(--color-heading)' }}>{t('clases.card.title')}</h3>
                                     
-                                    <div style={{ textDecoration: 'line-through', color: '#94a3b8', fontSize: '1.2rem', marginBottom: '5px' }}>
-                                        {t('clases.card.officialPrice')}
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px', color: 'var(--color-accent)' }}>
-                                        <span style={{ fontSize: '4rem', fontWeight: '800', lineHeight: 1 }}>{t('clases.card.price')}</span>
-                                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{t('clases.card.currency')}</span>
-                                    </div>
-                                    
-                                    <div style={{ margin: '15px 0 25px' }}>
-                                        <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--color-accent)', backgroundColor: '#fff5f8', display: 'inline-block', padding: '8px 16px', borderRadius: '30px', border: '1px solid #fce7f3' }}>
-                                            {t('clases.card.founderBadge')}
+                                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px', color: 'var(--color-accent)', marginTop: '20px' }}>
+                                        <span style={{ fontSize: '4.5rem', fontWeight: '800', lineHeight: 1 }}>
+                                            {settings?.subscription_price ? 
+                                                (Number(settings.subscription_price) % 1 === 0 ? 
+                                                    Math.floor(settings.subscription_price) : 
+                                                    settings.subscription_price.toString().replace('.', ',')) 
+                                                : t('clases.card.price')
+                                            }
                                         </span>
+                                        <span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{t('clases.card.currency')}</span>
                                     </div>
                                     
-                                    <p style={{ margin: '0 0 2.5rem', fontSize: '1rem', color: '#475569', fontWeight: '500' }}>
-                                        {t('clases.card.limited').replace('{max}', maxSubscribers || 30)} (<span style={{ color: activeSpots >= (maxSubscribers || 30) ? '#ef4444' : '#10b981' }}>{t('clases.card.spotsLeft').replace('{left}', maxSubscribers > 0 ? Math.max(0, maxSubscribers - activeSpots) : 'plazas')}</span>)
-                                    </p>
+                                    <div style={{ margin: '20px 0 30px' }}>
+                                        <div style={{ 
+                                            display: 'inline-flex', 
+                                            alignItems: 'center', 
+                                            gap: '8px', 
+                                            fontSize: '0.95rem', 
+                                            fontWeight: '600', 
+                                            color: '#059669', 
+                                            backgroundColor: '#ecfdf5', 
+                                            padding: '8px 20px', 
+                                            borderRadius: '50px',
+                                            border: '1px solid #d1fae5'
+                                        }}>
+                                            <span style={{ fontSize: '1.1rem' }}>🚚</span> {t('clases.card.shippingIncluded')}
+                                        </div>
+                                    </div>
 
                                     {hasActiveSubscription ? (
                                         <Link to="/academia" className="btn btn-primary" style={{ display: 'block', textAlign: 'center', padding: '1.2rem', borderRadius: '50px', fontSize: '1.1rem', fontWeight: '700' }}>

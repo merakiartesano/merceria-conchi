@@ -40,8 +40,7 @@ const Admin = () => {
         liveTitle: '',
         liveLink: '',
         welcomeText: '',
-        stripePaymentLink: '',
-        subscriptionPrice: '9.99',
+        subscriptionPrice: '50.00',
         subscriptionFeatures: '',
         maxSubscribers: '0',
         calendarText: ''
@@ -60,8 +59,15 @@ const Admin = () => {
 
     // Substitution Cancellation Modal State
     const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
-    const [subToCancel, setSubToCancel] = useState({ id: null, name: '', redsysId: '' });
+    const [isCancelling, setIsCancelling] = useState(false);
+    const [subToCancel, setSubToCancel] = useState({ id: null, name: '', redsysId: '', redsysIdentifier: null });
     const [copySuccess, setCopySuccess] = useState(false);
+    
+    // Cancellation Success State
+    const [isCancelSuccessModalOpen, setIsCancelSuccessModalOpen] = useState(false);
+    const [cancellationResult, setCancellationResult] = useState(null);
+    const [canForceCancel, setCanForceCancel] = useState(false);
+    const [lastError, setLastError] = useState('');
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -148,6 +154,32 @@ const Admin = () => {
         }
     };
 
+    // Detectar retorno de baja de Redsys
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const cancelStatus = params.get('cancel');
+        const targetUser = params.get('user');
+
+        if (cancelStatus === 'success') {
+            // Limpiar la URL para evitar re-disparar el mensaje
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            // Mostrar modal de éxito (los datos se recargarán solos)
+            setCancellationResult({
+                name: "la alumna",
+                authCode: 'Confirmado vía Redsys',
+                isManual: false,
+                isBankSuccess: true,
+                rawResponse: "Operación de baja confirmada por redirección."
+            });
+            setIsCancelSuccessModalOpen(true);
+            fetchSubscribersData();
+        } else if (cancelStatus === 'error') {
+            window.history.replaceState({}, document.title, window.location.pathname);
+            alert("La operación de baja en Redsys no se completó o fue cancelada.");
+        }
+    }, []);
+
     const handleLogout = async () => {
         await supabase.auth.signOut();
         setIsAuthenticated(false);
@@ -217,20 +249,87 @@ const Admin = () => {
         }
     };
 
-    const handleCancelClick = (userId, firstName, redsysId) => {
-        setSubToCancel({ id: userId, name: firstName, redsysId: redsysId || 'No disponible' });
+    const handleCancelClick = (userId, firstName, redsysId, redsysIdentifier) => {
+        setSubToCancel({ 
+            id: userId, 
+            name: firstName, 
+            redsysId: redsysId || 'No disponible',
+            redsysIdentifier: redsysIdentifier || null
+        });
         setIsCancelModalOpen(true);
     };
 
     const confirmCancellation = async () => {
+        setIsCancelling(true);
+        setCanForceCancel(false);
+        setLastError('');
         try {
-            await cancelSubscription(subToCancel.id);
-            setIsCancelModalOpen(false);
+            const result = await cancelSubscription(subToCancel.id);
+            
+            // Gestión de éxito automático (REST)
+            if (result && typeof result === 'object' && result.success) {
+                setCancellationResult({
+                    name: subToCancel.name,
+                    authCode: result.redsysResponse?.dsResponse || 'Confirmado',
+                    isManual: false,
+                    isBankSuccess: result.redsysResponse?.isBankSuccess,
+                    rawResponse: result.message || "Operación completada con éxito."
+                });
+                setIsCancelModalOpen(false);
+                setIsCancelSuccessModalOpen(true);
+            } else {
+                // Caso de denegación del banco: Permitimos forzar baja local
+                const errorMsg = result?.error || "El banco denegó la baja automática.";
+                setLastError(errorMsg);
+                if (result?.canForce || errorMsg.includes('42') || errorMsg.includes('Firma')) {
+                    setCanForceCancel(true);
+                } else {
+                    alert(`Error: ${errorMsg}`);
+                    setIsCancelModalOpen(false);
+                }
+            }
+            
             fetchSubscribersData();
-            // Show a small success pulse or alert on the dashboard if needed, 
-            // but for now we'll just close and refresh.
         } catch (error) {
-            alert("Error al revocar el acceso: " + error.message);
+            console.error("Error en confirmCancellation:", error);
+            setLastError(error.message);
+            // Si hay error de red o timeout, también permitimos forzar para no bloquear
+            setCanForceCancel(true);
+        } finally {
+            setIsCancelling(false);
+        }
+    };
+
+    const handleForceCancel = async () => {
+        if (!window.confirm("¿Confirmas que ya has gestionado la baja en Redsys y quieres quitarle el acceso a la web ahora mismo?")) return;
+        
+        setIsCancelling(true);
+        try {
+            // Usamos la RPC segura con el PIN para saltar RLS
+            const { error } = await supabase.rpc('cancel_admin_subscription', {
+                admin_pin: 'meraki2026',
+                target_user_id: subToCancel.id
+            });
+
+            if (error) throw error;
+
+            setIsCancelModalOpen(false);
+            setCanForceCancel(false); // Resetear estado de fuerza
+            
+            setCancellationResult({
+                name: subToCancel.name,
+                authCode: 'MANUAL',
+                isManual: true,
+                isBankSuccess: false,
+                rawResponse: "Baja forzada manualmente por el administrador tras error bancario. Acceso revocado en la web."
+            });
+            setIsCancelSuccessModalOpen(true);
+            fetchSubscribersData();
+        } catch (error) {
+            console.error("Error al forzar baja:", error);
+            alert("No se pudo forzar la baja: " + error.message);
+        } finally {
+            setIsCancelling(false);
         }
     };
 
@@ -334,8 +433,7 @@ const Admin = () => {
                     liveTitle: data.live_title || '',
                     liveLink: data.live_link || '',
                     welcomeText: data.welcome_text || '',
-                    stripePaymentLink: data.stripe_payment_link || '',
-                    subscriptionPrice: data.subscription_price?.toString() || '9.99',
+                    subscriptionPrice: data.subscription_price?.toString() || '50.00',
                     subscriptionFeatures: data.subscription_features || '',
                     maxSubscribers: data.max_subscribers?.toString() || '0',
                     calendarText: data.calendar_text || ''
@@ -1072,14 +1170,14 @@ const Admin = () => {
                                 <h3 style={{ marginTop: '2.5rem', marginBottom: '1.5rem', color: 'var(--color-primary)', borderBottom: '1px solid #e1e8f0', paddingBottom: '0.5rem' }}>Pagos y Suscripción</h3>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
                                     <div className="input-group">
-                                        <label>Precio Mensual (€)</label>
+                                        <label>Precio Cuota Mensual (€)</label>
                                         <input
                                             type="number" step="0.01" min="0"
                                             value={academySettings.subscriptionPrice}
                                             onChange={(e) => setAcademySettings({ ...academySettings, subscriptionPrice: e.target.value })}
-                                            placeholder="9.99"
+                                            placeholder="50.00"
                                         />
-                                        <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Visible en la página pública de Clases de Costura.</p>
+                                        <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Este es el importe que se cobrará automáticamente cada mes a las alumnas.</p>
                                     </div>
                                     <div className="input-group">
                                         <label>Límite de Plazas</label>
@@ -1270,14 +1368,37 @@ const Admin = () => {
                                                         <td><a href={`mailto:${user.email}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>{user.email || '-'}</a></td>
                                                         <td style={{ color: '#64748b' }}>{user.phone || '—'}</td>
                                                         <td>
-                                                            <span style={{
-                                                                display: 'inline-block', padding: '4px 12px',
-                                                                borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600',
-                                                                backgroundColor: isActive ? '#d1fae5' : '#f1f5f9',
-                                                                color: isActive ? '#065f46' : '#64748b'
-                                                            }}>
-                                                                {isActive ? '✅ Activa' : (sub?.status ?? 'Sin suscripción')}
-                                                            </span>
+                                                            {(() => {
+                                                                const status = sub?.status;
+                                                                let label = 'Sin suscripción';
+                                                                let bgColor = '#f1f5f9';
+                                                                let textColor = '#64748b';
+
+                                                                if (status === 'active') {
+                                                                    label = '✅ Activa';
+                                                                    bgColor = '#d1fae5';
+                                                                    textColor = '#065f46';
+                                                                } else if (status === 'past_due') {
+                                                                    label = '⚠️ Falta de pago';
+                                                                    bgColor = '#fee2e2';
+                                                                    textColor = '#991b1b';
+                                                                } else if (status === 'cancelled') {
+                                                                    label = '⚪ Cancelada';
+                                                                    bgColor = '#f8fafc';
+                                                                    textColor = '#475569';
+                                                                }
+
+                                                                return (
+                                                                    <span style={{
+                                                                        display: 'inline-block', padding: '4px 12px',
+                                                                        borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600',
+                                                                        backgroundColor: bgColor,
+                                                                        color: textColor
+                                                                    }}>
+                                                                        {label}
+                                                                    </span>
+                                                                );
+                                                            })()}
                                                         </td>
                                                         <td style={{ color: '#94a3b8', fontSize: '0.9rem', position: 'relative' }}>
                                                             <span>
@@ -1287,7 +1408,7 @@ const Admin = () => {
                                                             </span>
                                                             {isActive && (
                                                                 <button 
-                                                                    onClick={() => handleCancelClick(user.id, user.first_name, sub.redsys_order_id)}
+                                                                    onClick={() => handleCancelClick(user.id, user.first_name, sub.redsys_order_id, sub.redsys_identifier)}
                                                                     style={{ 
                                                                         display: 'block', 
                                                                         marginTop: '6px', 
@@ -1666,73 +1787,211 @@ const Admin = () => {
                                 ¿Estás segura de revocar el acceso a la academia para la alumna <strong>{subToCancel.name}</strong>?
                             </p>
                             
-                            <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                                <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#9a3412', fontWeight: 'bold' }}>
-                                    Recuerda: Esto NO cancela el cobro en el banco.
-                                </p>
-                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#c2410c' }}>
-                                    Debes entrar al Panel de Redsys y dar de baja la suscripción manualmente con este ID:
-                                </p>
-                                
-                                <div style={{ 
-                                    display: 'flex', 
-                                    alignItems: 'center', 
-                                    justifyContent: 'space-between', 
-                                    marginTop: '10px', 
-                                    backgroundColor: 'white', 
-                                    padding: '8px 12px', 
-                                    borderRadius: '6px', 
-                                    border: '1px solid #fed7aa' 
-                                }}>
-                                    <code style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '600' }}>{subToCancel.redsysId}</code>
-                                    <button 
-                                        onClick={() => handleCopyID(subToCancel.redsysId)}
-                                        style={{ 
-                                            background: copySuccess ? '#22c55e' : 'var(--color-primary)', 
-                                            color: 'white', 
-                                            border: 'none', 
-                                            padding: '4px 10px', 
-                                            borderRadius: '4px', 
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            fontSize: '0.75rem',
-                                            transition: 'all 0.2s'
-                                        }}
-                                    >
-                                        {copySuccess ? <Check size={14} /> : <Copy size={14} />}
-                                        {copySuccess ? '¡Copiado!' : 'Copiar ID'}
-                                    </button>
+                            {subToCancel.redsysIdentifier ? (
+                                <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #e0f2fe', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                                    <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#0369a1', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Check size={18} /> BAJA AUTOMÁTICA DETECTADA
+                                    </p>
+                                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#075985', lineHeight: '1.4' }}>
+                                        Esta alumna tiene una suscripción gestionada por Redsys. Al confirmar, el sistema <strong>cancelará automáticamente</strong> tanto el acceso a la web como los próximos cobros en su banco.
+                                    </p>
                                 </div>
-                            </div>
+                            ) : (
+                                <div style={{ backgroundColor: '#fff7ed', border: '1px solid #ffedd5', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                                    <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#9a3412', fontWeight: 'bold' }}>
+                                        Recuerda: Esto NO cancela el cobro en el banco.
+                                    </p>
+                                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#c2410c' }}>
+                                        Esta es una alumna antigua o sin contrato automático. Debes entrar al Panel de Redsys y dar de baja la suscripción manualmente con este ID:
+                                    </p>
+                                    
+                                    <div style={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'space-between', 
+                                        marginTop: '10px', 
+                                        backgroundColor: 'white', 
+                                        padding: '8px 12px', 
+                                        borderRadius: '6px', 
+                                        border: '1px solid #fed7aa' 
+                                    }}>
+                                        <code style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '600' }}>{subToCancel.redsysId}</code>
+                                        <button 
+                                            onClick={() => handleCopyID(subToCancel.redsysId)}
+                                            style={{ 
+                                                background: copySuccess ? '#22c55e' : 'var(--color-primary)', 
+                                                color: 'white', 
+                                                border: 'none', 
+                                                padding: '4px 10px', 
+                                                borderRadius: '4px', 
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px',
+                                                fontSize: '0.75rem',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            {copySuccess ? <Check size={14} /> : <Copy size={14} />}
+                                            {copySuccess ? '¡Copiado!' : 'Copiar ID'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             <p style={{ margin: '0 0 25px 0', fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
                                 Una vez confirmes aquí, la alumna dejará de tener acceso a los contenidos de la academia inmediatamente.
                             </p>
 
+
+                            {canForceCancel && (
+                                <div style={{ backgroundColor: '#fff1f2', border: '1px solid #fecdd3', padding: '15px', borderRadius: '8px', marginBottom: '20px', textAlign: 'center' }}>
+                                    <p style={{ margin: '0 0 10px 0', fontSize: '0.9rem', color: '#be123c', fontWeight: 'bold' }}>
+                                        ⚠️ EL BANCO NO PERMITE LA BAJA AUTOMÁTICA
+                                    </p>
+                                    <p style={{ margin: '0 0 15px 0', fontSize: '0.85rem', color: '#9f1239' }}>
+                                        Redsys devolvió: <strong>{lastError}</strong>. Esto suele pasar si el banco requiere claves de gestión especiales.<br/><br/>
+                                        Si ya has realizado la baja manualmente en el panel de Redsys, pulsa el botón de abajo para quitarle el acceso a la web inmediatamente.
+                                    </p>
+                                    <button 
+                                        onClick={handleForceCancel}
+                                        disabled={isCancelling}
+                                        style={{ 
+                                            width: '100%', 
+                                            backgroundColor: '#be123c', 
+                                            color: 'white', 
+                                            border: 'none', 
+                                            padding: '12px', 
+                                            borderRadius: '8px', 
+                                            fontWeight: 'bold',
+                                            cursor: 'pointer',
+                                            boxShadow: '0 4px 6px rgba(190, 18, 60, 0.2)'
+                                        }}
+                                    >
+                                        He cancelado en Redsys. FORZAR BAJA WEB.
+                                    </button>
+                                </div>
+                            )}
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <button 
-                                    onClick={() => setIsCancelModalOpen(false)} 
+                                    onClick={() => { setIsCancelModalOpen(false); setCanForceCancel(false); setLastError(''); }} 
                                     className="btn btn-secondary"
+                                    disabled={isCancelling}
                                     style={{ width: '100%', margin: 0 }}
                                 >
                                     No, Volver
                                 </button>
-                                <button 
-                                    onClick={confirmCancellation} 
-                                    className="btn" 
-                                    style={{ 
-                                        width: '100%', 
-                                        margin: 0, 
-                                        backgroundColor: '#ef4444', 
-                                        color: 'white',
-                                        border: 'none'
-                                    }}
-                                >
-                                    Sí, Revocar Acceso
-                                </button>
+                                {!canForceCancel && (
+                                    <button 
+                                        onClick={confirmCancellation} 
+                                        className="btn" 
+                                        disabled={isCancelling}
+                                        style={{ 
+                                            width: '100%', 
+                                            margin: 0, 
+                                            backgroundColor: isCancelling ? '#ccc' : '#ef4444', 
+                                            color: 'white',
+                                            border: 'none',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px'
+                                        }}
+                                    >
+                                        {isCancelling ? (
+                                            <><Loader className="animate-spin" size={16} /> Procesando...</>
+                                        ) : (
+                                            'Sí, Revocar Acceso'
+                                        )}
+                                    </button>
+                                )}
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL ÉXITO BAJA REDSYS --- */}
+            {isCancelSuccessModalOpen && cancellationResult && (
+                <div className="admin-modal-overlay">
+                    <div className="admin-modal" style={{ maxWidth: '450px', padding: '0', overflow: 'hidden' }}>
+                        <div style={{ backgroundColor: cancellationResult.isBankSuccess ? '#10b981' : '#f59e0b', padding: '30px 20px', textAlign: 'center', color: 'white' }}>
+                            <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 15px' }}>
+                                {cancellationResult.isBankSuccess ? <Check size={40} /> : <AlertTriangle size={40} />}
+                            </div>
+                            <h3 style={{ margin: 0, fontSize: '1.4rem' }}>
+                                {cancellationResult.isBankSuccess ? '¡Baja Confirmada!' : 'Baja Administrativa'}
+                            </h3>
+                        </div>
+                        
+                        <div className="modal-body" style={{ padding: '30px', textAlign: 'center' }}>
+                            <p style={{ margin: '0 0 20px 0', fontSize: '1.05rem', color: '#1e293b' }}>
+                                El acceso de <strong>{cancellationResult.name}</strong> ha sido revocado en la web.
+                            </p>
+                            
+                            <div style={{ 
+                                backgroundColor: cancellationResult.isBankSuccess ? '#f0fdf4' : '#fffbeb', 
+                                border: `1px solid ${cancellationResult.isBankSuccess ? '#dcfce7' : '#fef3c7'}`, 
+                                padding: '20px', 
+                                borderRadius: '12px', 
+                                marginBottom: '25px' 
+                            }}>
+                                <p style={{ 
+                                    margin: '0 0 8px 0', 
+                                    fontSize: '0.85rem', 
+                                    color: cancellationResult.isBankSuccess ? '#15803d' : '#b45309', 
+                                    textTransform: 'uppercase', 
+                                    letterSpacing: '0.05em', 
+                                    fontWeight: '600' 
+                                }}>
+                                    {cancellationResult.isBankSuccess ? 'Confirmación Bancaria (Redsys)' : 'Estado del Cobro Automático'}
+                                </p>
+                                <p style={{ 
+                                    margin: 0, 
+                                    fontSize: cancellationResult.isBankSuccess ? '1.5rem' : '1.1rem', 
+                                    color: cancellationResult.isBankSuccess ? '#166534' : '#92400e', 
+                                    fontWeight: 'bold' 
+                                }}>
+                                    {cancellationResult.isBankSuccess ? `Ref: ${cancellationResult.authCode}` : `Aviso: El banco devolvió el código ${cancellationResult.authCode}.`}
+                                </p>
+                                {!cancellationResult.isBankSuccess && (
+                                    <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: '#92400e', lineHeight: '1.4' }}>
+                                        El acceso web se ha quitado, pero <strong>debes verificar en el panel de Redsys</strong> que la suscripción esté cancelada allí también.
+                                    </p>
+                                )}
+
+                                {!cancellationResult.isBankSuccess && (
+                                    <div style={{ marginTop: '15px', textAlign: 'left' }}>
+                                        <details style={{ cursor: 'pointer' }}>
+                                            <summary style={{ fontSize: '0.8rem', color: '#92400e', marginBottom: '5px' }}>Ver detalles técnicos</summary>
+                                            <pre style={{ 
+                                                fontSize: '0.7rem', 
+                                                backgroundColor: 'rgba(0,0,0,0.05)', 
+                                                padding: '10px', 
+                                                borderRadius: '6px', 
+                                                overflowX: 'auto',
+                                                whiteSpace: 'pre-wrap',
+                                                color: '#444',
+                                                border: '1px solid rgba(0,0,0,0.1)'
+                                            }}>
+                                                {cancellationResult.rawResponse}
+                                            </pre>
+                                        </details>
+                                    </div>
+                                )}
+                            </div>
+
+                            <button 
+                                onClick={() => {
+                                    setIsCancelSuccessModalOpen(false);
+                                    setCancellationResult(null);
+                                }} 
+                                className="btn btn-primary"
+                                style={{ width: '100%', borderRadius: '30px', padding: '12px' }}
+                            >
+                                Entendido
+                            </button>
                         </div>
                     </div>
                 </div>

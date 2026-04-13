@@ -285,7 +285,20 @@ Deno.serve(async (req: Request) => {
     // Obtener código de respuesta
     const responseCode = parseInt(params.Ds_Response ?? params.DS_MERCHANT_RESPONSE ?? "9999", 10);
     const redsysOrderId = params.Ds_Order ?? params.DS_MERCHANT_ORDER ?? "";
+    const transactionType = params.Ds_TransactionType ?? params.DS_MERCHANT_TRANSACTIONTYPE ?? "";
     const isSuccess = responseCode >= 0 && responseCode <= 99;
+
+    // --- FLUJO DE BAJA (ANULACIÓN DE REFERENCIA) ---
+    if (transactionType === "B") {
+       if (isSuccess) {
+          console.log(`✅ Baja de referencia exitosa para pedido ${redsysOrderId}`);
+          await supabaseAdmin.from("subscriptions").update({ 
+            status: 'cancelled',
+            redsys_cancellation_date: new Date().toISOString()
+          }).eq("redsys_order_id", redsysOrderId);
+       }
+       return new Response("OK", { status: 200, headers: { "Content-Type": "text/plain" } });
+    }
 
     // --- FLUJO DE ACADEMIA ---
     let merchantData: any = {};
@@ -304,20 +317,30 @@ Deno.serve(async (req: Request) => {
           
           const { data: existingSub } = await supabaseAdmin.from("subscriptions").select("id").eq("user_id", userId).maybeSingle();
           
-          const nextMonth = new Date();
-          nextMonth.setDate(nextMonth.getDate() + 30);
+          // --- LÓGICA DE SINCRONIZACIÓN DÍA 1 & REGLA DEL 20 (Refined UTC) ---
+          const now = new Date();
+          const dayOfMonth = now.getUTCDate();
+          let nextPeriod;
+
+          if (dayOfMonth <= 20) {
+              // Caso A: Se apunta del 1 al 20 -> Renueva el día 1 del próximo mes (M+1)
+              nextPeriod = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+          } else {
+              // Caso B: Se apunta del 21 al final -> Renueva el día 1 del mes subsiguiente (M+2)
+              nextPeriod = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1));
+          }
           
           if (existingSub) {
              await supabaseAdmin.from("subscriptions").update({ 
                status: 'active', 
-               current_period_end: nextMonth.toISOString(),
+               current_period_end: nextPeriod.toISOString(),
                redsys_identifier: redsysIdentifier
              }).eq("id", existingSub.id);
           } else {
              await supabaseAdmin.from("subscriptions").insert({
                  user_id: userId,
                  status: 'active',
-                 current_period_end: nextMonth.toISOString(),
+                 current_period_end: nextPeriod.toISOString(),
                  redsys_order_id: redsysOrderId,
                  redsys_identifier: redsysIdentifier
              });

@@ -316,6 +316,7 @@ export const getSubscribers = async () => {
                 stripe_customer_id: u.stripe_customer_id || null,
                 current_period_end: u.current_period_end || null,
                 redsys_order_id: u.redsys_order_id || null,
+                redsys_identifier: u.redsys_identifier || null,
                 shipping_details: (u.address || u.pickup_pref) ? {
                     name: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
                     phone: u.phone || '',
@@ -365,23 +366,27 @@ export const updateShippingZone = async (id, zoneData) => {
 
 export const cancelSubscription = async (userId) => {
     try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Intentar cancelar vía Redsys Edge Function
-        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/redsys-cancel-subscription`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${session?.access_token || ''}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ userId })
+        if (sessionError || !session) {
+            console.error("Error al obtener la sesión:", sessionError);
+            throw new Error("No hay una sesión activa de administrador. Por favor, recarga la página.");
+        }
+
+        console.log("Iniciando baja Redsys para usuario:", userId, "con token activo.");
+
+        console.log("Iniciando baja Redsys para usuario:", userId, "vía Invoke.");
+        
+        const { data: result, error: invokeError } = await supabase.functions.invoke('redsys-cancel-subscription', {
+            body: { userId }
         });
 
-        const result = await response.json();
-        
-        if (response.ok) {
-            return true;
+        if (invokeError) {
+            console.error("Error en Invoke:", invokeError);
+            throw invokeError;
         }
+
+        return result; // Contiene { success, message, redsysResponse }
 
         // Si la función de Redsys falla porque no hay identificador (o error 404), 
         // fallback al RPC para al menos quitar el acceso en local.

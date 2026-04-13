@@ -120,13 +120,12 @@ Deno.serve(async (req: Request) => {
       // URLs de redirección al acabar 
       DS_MERCHANT_URLOK:              `${siteUrl}/pedido-confirmado?type=subscription`,
       DS_MERCHANT_URLKO:              `${siteUrl}/clases`,
-      DS_MERCHANT_PRODUCTDESCRIPTION: "Alta Membresia Academia Meraki ArteSano",
-      // IDENTIFIER: REQUIRED para obtener el Token (úsala también para historial)
+      DS_MERCHANT_PRODUCTDESCRIPTION: "Alta Membresia Academia Meraki ArteSano (COF)",
+      // IDENTIFIER: REQUIRED para obtener el Token
       DS_MERCHANT_IDENTIFIER:         "REQUIRED",
-      // --- OPCIÓN A: SUSCRIPCIÓN GESTIONADA POR REDSYS ---
-      DS_MERCHANT_RECURRING_TYPE:     "S",           // Suscripción
-      DS_MERCHANT_RECURRING_EXPIRY:   "2030-12-31",  // Fecha de fin lejana
-      DS_MERCHANT_RECURRING_FREQUENCY: "30",          // Frecuencia mensual (días)
+      // --- OPERATIVA COF (Card on File) para cobros posteriores ---
+      DS_MERCHANT_COF_INI:            "S",           // Operación inicial de una serie
+      DS_MERCHANT_COF_TYPE:           "R",           // Tipo Recurrente
       DS_MERCHANT_MERCHANTDATA:       merchantData
     };
 
