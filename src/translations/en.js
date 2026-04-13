@@ -132,6 +132,12 @@ export const en = {
     "auth.hasAccount": "Already have an account? ",
     "auth.registerHere": "Register here",
     "auth.loginHere": "Log in",
+    "auth.confirmPassword": "Confirm Password",
+    "auth.errorPasswordMatch": "Passwords do not match.",
+    "auth.errorPasswordLength": "Password must be at least 6 characters long.",
+    "auth.errorZipSpain": "Spain's postal code must have exactly 5 digits.",
+    "auth.errorPhoneSpain": "Please enter a valid phone number for Spain (9 digits).",
+    "auth.errorZipInvalidSpain": "Invalid postal code for Spain.",
 
     // Academy
     "academy.timeout": "5 second timeout reached! Supabase is not responding.",

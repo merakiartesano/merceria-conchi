@@ -65,7 +65,10 @@ const Clases = () => {
     const handleCTA = () => {
         if (!user) {
             navigate('/login', {
-                state: { from: { pathname: '/checkout', search: '?type=subscription' } }
+                state: { 
+                    from: { pathname: '/checkout', search: '?type=subscription' },
+                    isRegister: true
+                }
             });
         } else if (hasActiveSubscription) {
             navigate('/academia');

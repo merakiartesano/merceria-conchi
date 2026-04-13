@@ -132,6 +132,12 @@ export const es = {
     "auth.hasAccount": "¿Ya tienes cuenta? ",
     "auth.registerHere": "Regístrate aquí",
     "auth.loginHere": "Inicia Sesión",
+    "auth.confirmPassword": "Confirmar Contraseña",
+    "auth.errorPasswordMatch": "Las contraseñas no coinciden.",
+    "auth.errorPasswordLength": "La contraseña debe tener al menos 6 caracteres.",
+    "auth.errorZipSpain": "El código postal de España debe tener exactamente 5 dígitos.",
+    "auth.errorPhoneSpain": "Por favor, introduce un número de teléfono válido para España (9 dígitos).",
+    "auth.errorZipInvalidSpain": "Código postal inválido para España.",
 
     // Academy
     "academy.timeout": "Timeout de 5 segundos alcanzado! Supabase no responde.",
