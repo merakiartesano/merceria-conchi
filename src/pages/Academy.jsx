@@ -182,6 +182,9 @@ const Academy = () => {
             }
 
             const { data, error } = await supabase.functions.invoke('redsys-create-subscription', {
+                headers: {
+                    Authorization: `Bearer ${session.access_token}`
+                },
                 body: { 
                     userId: user.id, 
                     email: user.email, 

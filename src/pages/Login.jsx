@@ -18,9 +18,11 @@ const Login = () => {
     const [country, setCountry] = useState('España');
     
     const location = useLocation();
+    const queryParams = new URLSearchParams(location.search);
+    const mode = queryParams.get('mode');
     
-    // Si venimos de un botón de "Unirse", queremos mostrar registro directamente
-    const [isLogin, setIsLogin] = useState(location.state?.isRegister ? false : true);
+    // Si la URL dice 'register' o venimos de un botón de "Unirse", queremos mostrar registro directamente
+    const [isLogin, setIsLogin] = useState(mode === 'register' || location.state?.isRegister ? false : true);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [validationError, setValidationError] = useState('');
@@ -30,6 +32,7 @@ const Login = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isRecovery, setIsRecovery] = useState(false);
 
     const navigate = useNavigate();
     const { t } = useLanguage();
@@ -171,6 +174,26 @@ const Login = () => {
         }
     };
 
+    const handleRecoveryEmail = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        setValidationError('');
+        setMessage(null);
+
+        try {
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/restablecer-contrasena',
+            });
+            if (error) throw error;
+            setMessage(t('auth.recoverySuccess'));
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div style={{ padding: '120px 20px 80px', minHeight: '90vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fdfdfd' }}>
             <div style={{ 
@@ -184,8 +207,9 @@ const Login = () => {
             }}>
                 <div style={{ textAlign: 'center', marginBottom: '40px' }}>
                     <h1 style={{ color: 'var(--color-primary)', fontSize: '2.8rem', fontFamily: 'var(--font-serif)', marginBottom: '10px' }}>
-                        {isLogin ? t('auth.loginTitle') : t('auth.signupTitle')}
+                        {isRecovery ? t('auth.recoveryTitle') : (isLogin ? t('auth.loginTitle') : t('auth.signupTitle'))}
                     </h1>
+                    {isRecovery && <p style={{ color: '#718096', marginTop: '10px' }}>{t('auth.recoveryDesc')}</p>}
                     <div style={{ height: '4px', width: '60px', backgroundColor: 'var(--color-accent)', margin: '0 auto', borderRadius: '2px' }}></div>
                 </div>
 
@@ -207,8 +231,8 @@ const Login = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleAuth}>
-                    {!isLogin && (
+                <form onSubmit={isRecovery ? handleRecoveryEmail : handleAuth}>
+                    {!isLogin && !isRecovery && (
                         <div className="registration-fields animate-fade-in">
                             <div style={{ display: 'flex', gap: '15px', marginBottom: '18px' }}>
                                 <div style={{ flex: 1 }}>
@@ -306,79 +330,106 @@ const Login = () => {
                         />
                     </div>
 
-                    <div style={{ marginBottom: isLogin ? '35px' : '18px', position: 'relative' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem', fontWeight: '500', color: '#4a5568' }}>{t('auth.password')}</label>
-                        <div style={{ position: 'relative' }}>
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                style={{ 
-                                    width: '100%', 
-                                    padding: '14px 45px 14px 18px', 
-                                    border: isLogin ? '2px solid #1a202c' : '1px solid #e2e8f0', 
-                                    borderRadius: '12px', 
-                                    fontSize: '1rem', 
-                                    outline: 'none',
-                                    fontFamily: showPassword ? 'inherit' : 'monospace',
-                                    letterSpacing: showPassword ? 'normal' : '2px'
-                                }}
-                            />
-                            <button 
-                                type="button" 
-                                onClick={() => setShowPassword(!showPassword)}
-                                style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#718096', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                            >
-                                {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                            </button>
-                        </div>
-                    </div>
-
-                    {!isLogin && (
-                        <div style={{ marginBottom: '35px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem', fontWeight: '500', color: '#4a5568' }}>{t('auth.confirmPassword')}</label>
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    type={showConfirmPassword ? "text" : "password"}
-                                    required
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    style={{ 
-                                        width: '100%', 
-                                        padding: '14px 45px 14px 18px', 
-                                        border: '1px solid #e2e8f0', 
-                                        borderRadius: '12px', 
-                                        fontSize: '1rem', 
-                                        outline: 'none',
-                                        fontFamily: showConfirmPassword ? 'inherit' : 'monospace',
-                                        letterSpacing: showConfirmPassword ? 'normal' : '2px'
-                                    }}
-                                />
-                                <button 
-                                    type="button" 
-                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                    style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#718096', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                                >
-                                    {showConfirmPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                                </button>
+                    {!isRecovery && (
+                        <>
+                            <div style={{ marginBottom: isLogin ? '10px' : '18px', position: 'relative' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem', fontWeight: '500', color: '#4a5568' }}>{t('auth.password')}</label>
+                                <div style={{ position: 'relative' }}>
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        style={{ 
+                                            width: '100%', 
+                                            padding: '14px 45px 14px 18px', 
+                                            border: isLogin ? '2px solid #1a202c' : '1px solid #e2e8f0', 
+                                            borderRadius: '12px', 
+                                            fontSize: '1rem', 
+                                            outline: 'none',
+                                            fontFamily: showPassword ? 'inherit' : 'monospace',
+                                            letterSpacing: showPassword ? 'normal' : '2px'
+                                        }}
+                                    />
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#718096', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                    >
+                                        {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+
+                            {isLogin && (
+                                <div style={{ textAlign: 'right', marginBottom: '25px' }}>
+                                    <button 
+                                        type="button" 
+                                        onClick={() => { setIsRecovery(true); setError(null); setValidationError(''); setMessage(null); }}
+                                        style={{ background: 'none', border: 'none', color: '#718096', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' }}
+                                    >
+                                        {t('auth.forgotPassword')}
+                                    </button>
+                                </div>
+                            )}
+
+                            {!isLogin && (
+                                <div style={{ marginBottom: '35px' }}>
+                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.95rem', fontWeight: '500', color: '#4a5568' }}>{t('auth.confirmPassword')}</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            required
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            style={{ 
+                                                width: '100%', 
+                                                padding: '14px 45px 14px 18px', 
+                                                border: '1px solid #e2e8f0', 
+                                                borderRadius: '12px', 
+                                                fontSize: '1rem', 
+                                                outline: 'none',
+                                                fontFamily: showConfirmPassword ? 'inherit' : 'monospace',
+                                                letterSpacing: showConfirmPassword ? 'normal' : '2px'
+                                            }}
+                                        />
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            style={{ position: 'absolute', right: '15px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#718096', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            {showConfirmPassword ? <Eye size={20} /> : <EyeOff size={20} />}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
 
                     <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '10px', fontSize: '1.2rem', padding: '16px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(245, 158, 11, 0.3)', fontWeight: '600' }}>
-                        {loading ? <Loader2 className="animate-spin" /> : (isLogin ? t('auth.enter') : t('auth.register'))}
+                        {loading ? <Loader2 className="animate-spin" /> : (isRecovery ? t('auth.sendInstructions') : (isLogin ? t('auth.enter') : t('auth.register')))}
                     </button>
                 </form>
 
                 <div style={{ marginTop: '30px', textAlign: 'center', fontSize: '1.05rem', color: '#718096' }}>
-                    {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
-                    <button
-                        onClick={() => { setIsLogin(!isLogin); setError(null); setValidationError(''); setMessage(null); }}
-                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.05rem', marginLeft: '8px' }}
-                    >
-                        {isLogin ? t('auth.registerHere') : t('auth.loginHere')}
-                    </button>
+                    {isRecovery ? (
+                        <button
+                            onClick={() => { setIsRecovery(false); setError(null); setValidationError(''); setMessage(null); }}
+                            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.05rem' }}
+                        >
+                            {t('auth.backToLogin')}
+                        </button>
+                    ) : (
+                        <>
+                            {isLogin ? t('auth.noAccount') : t('auth.hasAccount')}
+                            <button
+                                onClick={() => { setIsLogin(!isLogin); setError(null); setValidationError(''); setMessage(null); }}
+                                style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: 'bold', fontSize: '1.05rem', marginLeft: '8px' }}
+                            >
+                                {isLogin ? t('auth.registerHere') : t('auth.loginHere')}
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

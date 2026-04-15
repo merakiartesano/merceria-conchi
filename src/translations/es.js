@@ -138,6 +138,16 @@ export const es = {
     "auth.errorZipSpain": "El código postal de España debe tener exactamente 5 dígitos.",
     "auth.errorPhoneSpain": "Por favor, introduce un número de teléfono válido para España (9 dígitos).",
     "auth.errorZipInvalidSpain": "Código postal inválido para España.",
+    "auth.forgotPassword": "¿Olvidaste tu contraseña?",
+    "auth.recoveryTitle": "Recuperar Contraseña",
+    "auth.recoveryDesc": "Introduce tu email y te enviaremos las instrucciones para restablecer tu contraseña.",
+    "auth.sendInstructions": "Enviar Instrucciones",
+    "auth.recoverySuccess": "Si el email existe en nuestra base de datos, recibirás un correo en unos minutos.",
+    "auth.resetTitle": "Nueva Contraseña",
+    "auth.resetDesc": "Define tu nueva contraseña de acceso.",
+    "auth.updatePassword": "Actualizar Contraseña",
+    "auth.passwordUpdated": "Tu contraseña ha sido actualizada correctamente. Ya puedes iniciar sesión.",
+    "auth.backToLogin": "Volver al inicio de sesión",
 
     // Academy
     "academy.timeout": "Timeout de 5 segundos alcanzado! Supabase no responde.",
@@ -229,7 +239,7 @@ export const es = {
     "clases.pricing.diff.li5": "• Ventajas exclusivas en tienda y próximos kits.",
     
     "clases.rules.title": "📌 Condiciones de Suscripción",
-    "clases.rules.p1": "La suscripción se renueva automáticamente el día 1 de cada mes para la caja del mes siguiente.",
+    "clases.rules.p1": "La suscripción se renueva automáticamente el día 20 de cada mes para la caja del mes siguiente.",
     "clases.rules.p2": "Para recibir la caja del próximo mes, debes suscribirte antes del día 20. Si te inscribes después del día 20, tu primera caja será la del mes subsiguiente.",
     "clases.rules.p3": "Esto se debe a que del 21 al 30 preparamos cada kit con mucho mimo para que salga puntual el día 1.",
     "clases.rules.example": "Ejemplo: Si te unes el 15 de mayo, recibes la caja de junio. Si te unes el 25 de mayo, recibirás la de julio.",

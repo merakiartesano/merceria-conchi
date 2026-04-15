@@ -1,5 +1,7 @@
 // Edge Function: redsys-create-subscription
-// Inicia el flujo de cobro recurrente u opción 1 gestionada por Redsys
+// HMAC_SHA256_V1 para Suscripciones (COF - Card on File)
+// Redirige al alumno a la pasarela para el primer pago y registro de tarjeta.
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import forge from "npm:node-forge@1.3.1";
 
@@ -21,7 +23,7 @@ function deriveKey3DES(secretKeyB64: string, orderId: string): string {
   const cipher = forge.cipher.createCipher("3DES-CBC", forge.util.createBuffer(keyBytes));
   cipher.start({ iv: forge.util.createBuffer("\0\0\0\0\0\0\0\0") });
 
-  // Desactivar padding PKCS7
+  // Desactivar padding PKCS7 — Redsys quiere la salida sin padding
   // @ts-ignore
   cipher.mode.pad = function() { return true; };
   // @ts-ignore
@@ -52,7 +54,7 @@ function generateRedsysSignature(
 }
 
 /**
- * Codifica un string en Base64 ESTÁNDAR.
+ * Codifica un string en Base64 ESTÁNDAR, compatible con Unicode.
  */
 function encodeBase64Standard(str: string): string {
   const encoder = new TextEncoder();
@@ -85,24 +87,23 @@ Deno.serve(async (req: Request) => {
     const merchantCode = Deno.env.get("REDSYS_MERCHANT_CODE")?.trim() ?? "";
     const terminal     = Deno.env.get("REDSYS_TERMINAL")?.trim() ?? "1";
     const secretKey    = Deno.env.get("REDSYS_SECRET_KEY")?.trim() ?? "";
-    const redsysUrl    = Deno.env.get("REDSYS_URL")?.trim() ?? "https://sis-t.redsys.es:25443/sis/realizarPago";
-    const siteUrl      = Deno.env.get("SITE_URL")?.trim() ?? "https://merceria-conchi.vercel.app";
+    const redsysUrl    = Deno.env.get("REDSYS_URL")?.trim() ?? "https://sis.redsys.es/sis/realizarPago";
+    const siteUrl      = Deno.env.get("SITE_URL")?.trim() ?? "https://merakiartesano.es";
     const supabaseUrl  = Deno.env.get("SUPABASE_URL") ?? "";
     
     if (!merchantCode || !secretKey) {
-      return new Response(JSON.stringify({ error: "Variables Redsys no configuradas" }), {
+      return new Response(JSON.stringify({ error: "Variables Redsys no configuradas en producción" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Número de pedido para suscripción: 12 dígitos, prefijo 'S' o timestamp 
+    // Número de pedido para suscripción: 12 dígitos basados en timestamp
     const timestamp = Date.now().toString();
-    // Usamos los últimos 12 dígitos (ej: 031405123456)
     const redsysOrderId = timestamp.slice(-12);
     const amountCents   = Math.round(amountNum * 100).toString();
     const notificationUrl = `${supabaseUrl}/functions/v1/redsys-notification`;
 
-    // Pasamos info extra en MerchantData para que el webhook sepa qué alumno es
+    // Pasamos info extra en MerchantData para que el webhook sepa procesar el alta
     const merchantData = JSON.stringify({
       userId: userId,
       email: email,
@@ -117,23 +118,25 @@ Deno.serve(async (req: Request) => {
       DS_MERCHANT_TRANSACTIONTYPE:    "0",
       DS_MERCHANT_TERMINAL:           terminal,
       DS_MERCHANT_MERCHANTURL:        notificationUrl,
-      // URLs de redirección al acabar 
+      // URLs de redirección (siteUrl corregido)
       DS_MERCHANT_URLOK:              `${siteUrl}/pedido-confirmado?type=subscription`,
       DS_MERCHANT_URLKO:              `${siteUrl}/clases`,
-      DS_MERCHANT_PRODUCTDESCRIPTION: "Alta Membresia Academia Meraki ArteSano (COF)",
-      // IDENTIFIER: REQUIRED para obtener el Token
+      DS_MERCHANT_PRODUCTDESCRIPTION: "Alta Club Creativo MERAKI (Suscripcion)",
+      
+      // ✅ Parámetros para suscripciones (COF)
       DS_MERCHANT_IDENTIFIER:         "REQUIRED",
-      // --- OPERATIVA COF (Card on File) para cobros posteriores ---
-      DS_MERCHANT_COF_INI:            "S",           // Operación inicial de una serie
+      DS_MERCHANT_COF_INI:            "S",           // Operación inicial
       DS_MERCHANT_COF_TYPE:           "R",           // Tipo Recurrente
       DS_MERCHANT_MERCHANTDATA:       merchantData
     };
 
     const paramsJson = JSON.stringify(merchantParams);
+    
+    // ✅ Formato Base64 estándar
     const paramsB64Standard = encodeBase64Standard(paramsJson);
     const signature = generateRedsysSignature(secretKey, redsysOrderId, paramsB64Standard);
 
-    console.log("redsys-create-subscription OK:", { redsysOrderId, amountCents });
+    console.log("redsys-create-subscription PROD OK:", { redsysOrderId, amountCents, siteUrl });
 
     return new Response(
       JSON.stringify({
@@ -146,8 +149,8 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("Error in redsys-create-subscription:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    console.error("Critical Error in redsys-create-subscription:", err);
+    return new Response(JSON.stringify({ error: "Error en el servidor de pagos de la academia: " + err.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }

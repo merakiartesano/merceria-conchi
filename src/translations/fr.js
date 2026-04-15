@@ -138,6 +138,16 @@ export const fr = {
     "auth.errorZipSpain": "Le code postal espagnol doit comporter exactement 5 chiffres.",
     "auth.errorPhoneSpain": "Veuillez saisir un numéro de téléphone valide pour l'Espagne (9 chiffres).",
     "auth.errorZipInvalidSpain": "Code postal invalide pour l'Espagne.",
+    "auth.forgotPassword": "Mot de passe oublié ?",
+    "auth.recoveryTitle": "Récupérer le mot de passe",
+    "auth.recoveryDesc": "Entrez votre email et nous vous enverrons des instructions pour réinitialiser votre mot de passe.",
+    "auth.sendInstructions": "Envoyer les instructions",
+    "auth.recoverySuccess": "Si l'email existe dans notre base de données, vous recevrez un email dans quelques minutes.",
+    "auth.resetTitle": "Nouveau mot de passe",
+    "auth.resetDesc": "Définissez votre nouveau mot de passe d'accès.",
+    "auth.updatePassword": "Mettre à jour le mot de passe",
+    "auth.passwordUpdated": "Votre mot de passe a été mis à jour avec succès. Vous pouvez maintenant vous connecter.",
+    "auth.backToLogin": "Retour à la connexion",
 
     // Academy
     "academy.timeout": "Délai de 5 secondes atteint! Supabase ne répond pas.",
@@ -224,7 +234,7 @@ export const fr = {
     "clases.pricing.diff.li5": "• Avantages exclusifs en boutique et sur les prochains kits.",
     
     "clases.rules.title": "📌 Conditions d'Abonnement",
-    "clases.rules.p1": "L'abonnement se renouvelle automatiquement le 1er de chaque mois pour la boîte du mois suivant.",
+    "clases.rules.p1": "L'abonnement se renouvelle automatiquement le 20 de chaque mois pour la boîte du mois suivant.",
     "clases.rules.p2": "Pour recevoir la boîte du mois prochain, vous devez vous abonner avant le 20. Si vous vous inscrivez après le 20, votre première boîte sera celle du mois d'après.",
     "clases.rules.p3": "C'est parce que du 21 au 30, nous préparons chaque kit avec grand soin pour qu'il soit expédié ponctuellement le 1er.",
     "clases.rules.example": "Exemple : Si vous rejoignez le 15 mai, vous recevez la boîte de juin. Si vous rejoignez le 25 mai, vous recevrez celle de juillet.",

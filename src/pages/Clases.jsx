@@ -64,21 +64,16 @@ const Clases = () => {
 
     const handleCTA = () => {
         if (!user) {
-            navigate('/login', {
+            navigate('/login?mode=register', {
                 state: { 
-                    from: { pathname: '/checkout', search: '?type=subscription' },
+                    from: { pathname: '/academia' },
                     isRegister: true
                 }
             });
         } else if (hasActiveSubscription) {
             navigate('/academia');
         } else {
-            navigate('/checkout?type=subscription', { 
-                state: { 
-                    isSubscription: true, 
-                    price: parseFloat(settings?.subscription_price) || 32 
-                } 
-            });
+            navigate('/academia?autoSuscripcion=true');
         }
     };
 

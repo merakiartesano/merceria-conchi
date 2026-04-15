@@ -94,7 +94,7 @@ Deno.serve(async (req: Request) => {
     const terminal     = Deno.env.get("REDSYS_TERMINAL")?.trim() ?? "1";
     const secretKey    = Deno.env.get("REDSYS_SECRET_KEY")?.trim() ?? "";
     const redsysUrl    = Deno.env.get("REDSYS_URL")?.trim() ?? "https://sis-t.redsys.es:25443/sis/realizarPago";
-    const siteUrl      = Deno.env.get("SITE_URL")?.trim() ?? "https://merceria-conchi.vercel.app";
+    const siteUrl      = Deno.env.get("SITE_URL")?.trim() ?? "https://merakiartesano.es";
     const supabaseUrl  = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseSrv  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -139,7 +139,13 @@ Deno.serve(async (req: Request) => {
     // ✅ La firma se calcula sobre el Base64 estándar y se devuelve en Base64Url
     const signature = generateRedsysSignature(secretKey, redsysOrderId, paramsB64Standard);
 
-    console.log("redsys-create-payment OK:", { redsysOrderId, amountCents, terminal, paramsB64Standard: paramsB64Standard.substring(0, 30) + "..." });
+    console.log("redsys-create-payment OK:", { 
+      redsysOrderId, 
+      amountCents, 
+      terminal, 
+      notificationUrl,
+      paramsB64Standard: paramsB64Standard.substring(0, 30) + "..." 
+    });
 
     return new Response(
       JSON.stringify({

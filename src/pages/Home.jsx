@@ -295,7 +295,7 @@ const Home = () => {
                 {/* Link a Google */}
                 <div style={{ textAlign: 'center', marginTop: '2.5rem', padding: '0 2rem' }}>
                     <a
-                        href="https://www.google.com/search?sa=X&sca_esv=aa402220b09531da&rlz=1C1UEAD_esES1082ES1083&hl=es-ES&sxsrf=ANbL-n4V4pQkIYIQk7H-bdJz8CbgVsX9pg:1775639103665&q=Meraki+ArteSano+Rese%C3%B1as&rflfq=1&num=20&stick=H4sIAAAAAAAAAONgkxI2NjE2NzEztjQwMDSxMLUwMzUz38DI-IpRwje1KDE7U8GxqCQ1ODEvXyEotTj18MbE4kWsOKUA7ACtBlAAAAA&rldimm=3437463900148586567&tbm=lcl&ved=2ahUKEwjKzZeQ892TAxXcRaQEHec7Ac8Q9fQKegQIThAG&biw=1463&bih=788&dpr=1.75#lkt=LocalPoiReviews"
+                        href="https://www.google.com/search?sca_esv=a28f41119e0f780b&rlz=1C1UEAD_esES1082ES1083&sxsrf=ANbL-n6nEmwpx5w7K2ddov61labSs1hSLw:1776180085218&si=AL3DRZEsmMGCryMMFSHJ3StBhOdZ2-6yYkXd_doETEE1OR-qOWJ-cIFmtSEggNzslSY4SBD42Dq17678u3LGdRDrCWRMdUOfPIbiU8BNikN3bVZcaq_C0rr3Y5jH-zbverb5RESSB2hNznSG4Q_ZVKLcV1NZc00aoQ%3D%3D&q=Meraki+ArteSano+Rese%C3%B1as&sa=X&ved=2ahUKEwiLkqW40u2TAxW83wIHHTl1IgEQ0bkNegQILRAH&biw=1463&bih=788&dpr=1.75"
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{

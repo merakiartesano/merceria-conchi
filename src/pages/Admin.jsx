@@ -28,7 +28,7 @@ const Admin = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [ordersLoading, setOrdersLoading] = useState(true);
-    const [orderFilter, setOrderFilter] = useState('Todos');
+    const [orderFilter, setOrderFilter] = useState('Pagado');
     const [searchQuery, setSearchQuery] = useState('');
     const [subscribers, setSubscribers] = useState([]);
     const [subscribersLoading, setSubscribersLoading] = useState(true);

@@ -164,9 +164,9 @@ Deno.serve(async (req) => {
         if (isSuccess) {
           console.log(`✅ Cobro exitoso para sub ${sub.id}. Pedido: ${orderId}`);
           
-          // Ampliar al día 1 del mes siguiente para mantener sincronización (Refined UTC)
+          // Ampliar al día 20 del mes siguiente para cobro unificado (UTC)
           const refNow = new Date();
-          const nextPeriod = new Date(Date.UTC(refNow.getUTCFullYear(), refNow.getUTCMonth() + 1, 1));
+          const nextPeriod = new Date(Date.UTC(refNow.getUTCFullYear(), refNow.getUTCMonth() + 1, 20, 23, 59, 59, 999));
 
           await supabaseAdmin.from("subscriptions").update({
             current_period_end: nextPeriod.toISOString(),

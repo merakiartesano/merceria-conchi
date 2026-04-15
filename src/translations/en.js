@@ -138,6 +138,16 @@ export const en = {
     "auth.errorZipSpain": "Spain's postal code must have exactly 5 digits.",
     "auth.errorPhoneSpain": "Please enter a valid phone number for Spain (9 digits).",
     "auth.errorZipInvalidSpain": "Invalid postal code for Spain.",
+    "auth.forgotPassword": "Forgot your password?",
+    "auth.recoveryTitle": "Recover Password",
+    "auth.recoveryDesc": "Enter your email and we'll send you instructions to reset your password.",
+    "auth.sendInstructions": "Send Instructions",
+    "auth.recoverySuccess": "If the email exists in our database, you will receive an email in a few minutes.",
+    "auth.resetTitle": "New Password",
+    "auth.resetDesc": "Set your new access password.",
+    "auth.updatePassword": "Update Password",
+    "auth.passwordUpdated": "Your password has been updated successfully. You can now log in.",
+    "auth.backToLogin": "Back to login",
 
     // Academy
     "academy.timeout": "5 second timeout reached! Supabase is not responding.",
@@ -224,7 +234,7 @@ export const en = {
     "clases.pricing.diff.li5": "• Exclusive store benefits and future kits.",
     
     "clases.rules.title": "📌 Subscription Terms",
-    "clases.rules.p1": "The subscription automatically renews on the 1st of each month for the following month's box.",
+    "clases.rules.p1": "The subscription automatically renews on the 20th of each month for the following month's box.",
     "clases.rules.p2": "To receive next month's box, you must subscribe before the 20th. If you sign up after the 20th, your first box will be the one for the month after next.",
     "clases.rules.p3": "This is because from the 21st to the 30th we prepare each kit with great care so that it ships punctually on the 1st.",
     "clases.rules.example": "Example: If you join on May 15th, you receive the June box. If you join on May 25th, you will receive the July box.",

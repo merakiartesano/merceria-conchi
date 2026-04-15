@@ -19,6 +19,7 @@ import PagoOk from './pages/PagoOk';
 import PagoKo from './pages/PagoKo';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Academy from './pages/Academy';
 import { AvisoLegal, PoliticaPrivacidad, PoliticaCookies, CondicionesCompra } from './pages/LegalPages';
 
@@ -41,6 +42,7 @@ const AppContent = () => {
                     <Route path="/pago-ok" element={<PagoOk />} />
                     <Route path="/pago-ko" element={<PagoKo />} />
                     <Route path="/login" element={<Login />} />
+                    <Route path="/restablecer-contrasena" element={<ResetPassword />} />
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/academia" element={
                         <ProtectedRoute>
