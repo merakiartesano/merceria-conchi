@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Users, Settings, LogOut, Plus, Edit2, Trash2, Lock, X, Upload, Save, Loader, ShoppingBag, Truck, Search, Copy, Check, AlertTriangle } from 'lucide-react';
+import { Package, Users, Settings, LogOut, Plus, Edit2, Trash2, Lock, X, Upload, Save, Loader, ShoppingBag, Truck, Search, Copy, Check, AlertTriangle, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { getProducts, createProduct, deleteProduct, updateProduct, uploadImage, getOrders, updateOrderStatus, getAcademySettings, updateAcademySettings, getSubscribers, cancelSubscription, getAcademyVideos, createAcademyVideo, updateAcademyVideo, deleteAcademyVideo, getShippingZones, updateShippingZone, triggerClassReminder, getCategories, createCategory, deleteCategory } from '../lib/productService';
 import { supabase } from '../lib/supabase';
 
@@ -76,6 +76,12 @@ const Admin = () => {
     const [editingVideo, setEditingVideo] = useState(null);
     const [selectedSubShipping, setSelectedSubShipping] = useState(null);
     const [isShippingModalOpen, setIsShippingModalOpen] = useState(false);
+    
+    // History Modal State
+    const [selectedHistoryUser, setSelectedHistoryUser] = useState(null);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [historyOrders, setHistoryOrders] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
     const [videoFormData, setVideoFormData] = useState({
         title: '',
         description: '',
@@ -348,6 +354,50 @@ const Admin = () => {
             console.error("Error fetching videos:", error);
         } finally {
             setVideosLoading(false);
+        }
+    };
+
+    const handleViewHistory = async (user) => {
+        setSelectedHistoryUser(user);
+        setIsHistoryModalOpen(true);
+        setLoadingHistory(true);
+        try {
+            const { data, error } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('customer_email', user.email)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+
+            // Filtrar SOLO los pagos relacionados con la academia (renovaciones automáticas)
+            let academyOrders = (data || []).filter(o => o.is_academy_renewal === true);
+            
+            // Añadir manualmente el registro de "Alta Academia" usando los datos de la suscripción
+            const sub = user.subscriptions?.[0];
+            // Para asegurar que el ALTA siempre aparezca, verificamos que tenga referencia de redsys
+            if (sub && sub.redsys_order_id) {
+                // Confirmar que no exista un "pedido" ya con esa referencia
+                if (!academyOrders.find(o => o.redsys_order_id === sub.redsys_order_id)) {
+                    academyOrders.push({
+                        id: 'alta-' + sub.redsys_order_id,
+                        created_at: user.created_at || new Date().toISOString(),
+                        total_amount: 50, // Importe fijo del alta de la academia
+                        is_academy_renewal: false, 
+                        is_academy_alta: true, // Flag específico para renderizar
+                        redsys_order_id: sub.redsys_order_id,
+                        status: 'Pagado'
+                    });
+                }
+            }
+            
+            // Ordenar de nuevo todo por fecha descendente
+            academyOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+            setHistoryOrders(academyOrders);
+        } catch (err) {
+            console.error('Error fetching history:', err);
+        } finally {
+            setLoadingHistory(false);
         }
     };
 
@@ -1344,16 +1394,19 @@ const Admin = () => {
                                             <th>Teléfono</th>
                                             <th>Estado</th>
                                             <th>Fin Periodo</th>
+                                            <th>Referencia</th>
+                                            <th>Último Pago</th>
+                                            <th>Historial</th>
                                             <th>Envío</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {subscribersLoading ? (
-                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem' }}>
+                                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '3rem' }}>
                                                 <Loader className="animate-spin" size={28} style={{ display: 'inline-block', color: 'var(--color-primary)' }} />
                                             </td></tr>
                                         ) : subscribers.length === 0 ? (
-                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                                 <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🧵</div>
                                                 <p style={{ margin: 0 }}>Todavía no hay alumnas registradas.</p>
                                                 <p style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>Cuando alguien se registre aparecerá aquí.</p>
@@ -1374,18 +1427,23 @@ const Admin = () => {
                                                                 let bgColor = '#f1f5f9';
                                                                 let textColor = '#64748b';
 
+                                                                const isExpired = sub?.current_period_end && new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end) < new Date();
                                                                 if (status === 'active') {
                                                                     label = '✅ Activa';
                                                                     bgColor = '#d1fae5';
                                                                     textColor = '#065f46';
+                                                                } else if (status === 'cancelled' && !isExpired) {
+                                                                    label = '🕒 Baja (Acceso)';
+                                                                    bgColor = '#fef9c3';
+                                                                    textColor = '#854d0e';
+                                                                } else if (status === 'cancelled' && isExpired) {
+                                                                    label = '⚪ Cancelada';
+                                                                    bgColor = '#f8fafc';
+                                                                    textColor = '#475569';
                                                                 } else if (status === 'past_due') {
                                                                     label = '⚠️ Falta de pago';
                                                                     bgColor = '#fee2e2';
                                                                     textColor = '#991b1b';
-                                                                } else if (status === 'cancelled') {
-                                                                    label = '⚪ Cancelada';
-                                                                    bgColor = '#f8fafc';
-                                                                    textColor = '#475569';
                                                                 }
 
                                                                 return (
@@ -1425,6 +1483,60 @@ const Admin = () => {
                                                                     🗑️ Dar de Baja
                                                                 </button>
                                                             )}
+                                                        </td>
+                                                        <td style={{ color: '#64748b', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                                                            {sub?.redsys_order_id ? (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <span>{sub.redsys_order_id}</span>
+                                                                    <button 
+                                                                        onClick={() => handleCopyID(sub.redsys_order_id)}
+                                                                        className="btn-icon-small"
+                                                                        style={{ padding: '4px' }}
+                                                                        title="Copiar referencia de Redsys"
+                                                                    >
+                                                                        <Copy size={14} />
+                                                                    </button>
+                                                                </div>
+                                                            ) : '—'}
+                                                        </td>
+                                                        <td style={{ fontSize: '0.85rem' }}>
+                                                            {sub?.last_payment_date ? (
+                                                                <div>
+                                                                    <div style={{ color: '#475569', fontWeight: '500' }}>
+                                                                        {new Date(sub.last_payment_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                                                    </div>
+                                                                    {sub.last_payment_status === 'success' ? (
+                                                                        <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                                            <Check size={12} /> Éxito
+                                                                        </span>
+                                                                    ) : sub.last_payment_status === 'failed' ? (
+                                                                        <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}>
+                                                                            <AlertTriangle size={12} /> Fallido
+                                                                        </span>
+                                                                    ) : null}
+                                                                </div>
+                                                            ) : '—'}
+                                                        </td>
+                                                        <td>
+                                                            <button 
+                                                                onClick={() => handleViewHistory(user)}
+                                                                className="btn-icon-small"
+                                                                style={{ 
+                                                                    padding: '4px 10px', 
+                                                                    width: 'auto',
+                                                                    fontSize: '0.8rem', 
+                                                                    borderRadius: '20px', 
+                                                                    display: 'flex', 
+                                                                    alignItems: 'center', 
+                                                                    gap: '5px',
+                                                                    backgroundColor: '#f1f5f9',
+                                                                    color: '#475569',
+                                                                    border: '1px solid #e2e8f0'
+                                                                }}
+                                                                title="Ver historial de pagos"
+                                                            >
+                                                                <FileText size={14} /> Pagos
+                                                            </button>
                                                         </td>
                                                         <td>
                                                             {sub?.shipping_details ? (
@@ -1726,6 +1838,76 @@ const Admin = () => {
                     </div>
                 </div>
             )}
+            {/* --- MODAL HISTORIAL DE PAGOS SUSCRIPCION --- */}
+            {isHistoryModalOpen && selectedHistoryUser && (
+                <div className="admin-modal-overlay">
+                    <div className="admin-modal" style={{ maxWidth: '650px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                        <div className="modal-header">
+                            <h3>
+                                <FileText size={20} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--color-primary)' }} /> 
+                                Historial de Pagos de {selectedHistoryUser.first_name || 'la alumna'}
+                            </h3>
+                            <button onClick={() => setIsHistoryModalOpen(false)} className="btn-icon-small"><X size={20} /></button>
+                        </div>
+                        <div className="modal-body" style={{ overflowY: 'auto', padding: '20px' }}>
+                            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>
+                                A continuación se muestran todos los cobros (tienda y academia) asociados al email <strong>{selectedHistoryUser.email}</strong>.
+                            </p>
+                            
+                            {loadingHistory ? (
+                                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+                                    <Loader size={30} className="animate-spin" color="var(--color-primary)" />
+                                </div>
+                            ) : historyOrders.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                    <p>No se han encontrado pagos para esta alumna.</p>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                    {historyOrders.map(order => (
+                                        <div key={order.id} style={{ 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between', 
+                                            alignItems: 'center', 
+                                            padding: '15px 20px', 
+                                            border: '1px solid #e2e8f0', 
+                                            borderRadius: '12px', 
+                                            backgroundColor: '#fdf8fa' 
+                                        }}>
+                                            <div>
+                                                <p style={{ fontWeight: '600', color: '#1e293b', margin: '0 0 5px 0' }}>
+                                                    {order.is_academy_alta ? '🎓 Alta Academia' : '🌺 Renovación Academia'}
+                                                </p>
+                                                <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                                                    {new Date(order.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })} a las {new Date(order.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                                                    {order.redsys_order_id && <span style={{ marginLeft: '10px' }}>• Ref: <strong>{order.redsys_order_id}</strong></span>}
+                                                </p>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', fontSize: '1.2rem', margin: '0 0 5px 0' }}>{order.total_amount} €</p>
+                                                <span style={{ 
+                                                    fontSize: '0.8rem', 
+                                                    padding: '4px 10px', 
+                                                    borderRadius: '20px', 
+                                                    backgroundColor: order.status === 'Pagado' ? '#ecfdf5' : '#fef2f2', 
+                                                    color: order.status === 'Pagado' ? '#059669' : '#dc2626',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px'
+                                                }}>
+                                                    {order.status === 'Pagado' ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                                    {order.status}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* --- MODAL DIRECCIÓN DE ENVÍO SUSCRIPCIÓN --- */}
             {isShippingModalOpen && selectedSubShipping && (
                 <div className="admin-modal-overlay">
@@ -1793,7 +1975,7 @@ const Admin = () => {
                                         <Check size={18} /> BAJA AUTOMÁTICA DETECTADA
                                     </p>
                                     <p style={{ margin: 0, fontSize: '0.85rem', color: '#075985', lineHeight: '1.4' }}>
-                                        Esta alumna tiene una suscripción gestionada por Redsys. Al confirmar, el sistema <strong>cancelará automáticamente</strong> tanto el acceso a la web como los próximos cobros en su banco.
+                                        Esta alumna tiene una suscripción gestionada por Redsys. Al confirmar, el sistema <strong>cancelará los próximos cobros automáticos</strong> y le enviará un email. La alumna mantendrá su acceso hasta el fin de su periodo pagado.
                                     </p>
                                 </div>
                             ) : (

@@ -52,15 +52,28 @@ export const AuthProvider = ({ children }) => {
                 .from('subscriptions')
                 .select('*')
                 .eq('user_id', userId)
-                .in('status', ['active', 'trialing'])
+                .in('status', ['active', 'trialing', 'cancelled'])
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle();
 
             if (error) {
                 console.error("Error fetching subscription:", error);
             }
 
-            setSubscription(data || null);
-            return data;
+            // Validación amigable: si está cancelada pero aún tiene tiempo pagado, se considera activa
+            const now = new Date();
+            const periodEnd = data?.current_period_end ? new Date(data.current_period_end) : null;
+            
+            const isValid = data && (
+                data.status === 'active' || 
+                data.status === 'trialing' || 
+                (data.status === 'cancelled' && periodEnd && periodEnd > now)
+            );
+
+            const effectiveSub = isValid ? data : null;
+            setSubscription(effectiveSub);
+            return effectiveSub;
         } catch (error) {
             console.error(error);
             return null;

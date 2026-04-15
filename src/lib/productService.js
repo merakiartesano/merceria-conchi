@@ -317,6 +317,8 @@ export const getSubscribers = async () => {
                 current_period_end: u.current_period_end || null,
                 redsys_order_id: u.redsys_order_id || null,
                 redsys_identifier: u.redsys_identifier || null,
+                last_payment_date: u.last_payment_date || null,
+                last_payment_status: u.last_payment_status || null,
                 shipping_details: (u.address || u.pickup_pref) ? {
                     name: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
                     phone: u.phone || '',

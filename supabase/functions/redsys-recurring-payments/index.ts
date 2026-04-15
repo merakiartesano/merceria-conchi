@@ -11,14 +11,15 @@ const corsHeaders = {
 
 async function sendEmail(to: string, subject: string, html: string) {
   const transporter = nodemailer.createTransport({
-    host: Deno.env.get("SMTP_HOST") ?? "mail.merakiartesano.es",
+    host: "s2.aloonlinedns.com",
     port: 465,
     secure: true,
     auth: {
       user: Deno.env.get("SMTP_USER") ?? "",
       pass: Deno.env.get("SMTP_PASS") ?? "",
     },
-    tls: { rejectUnauthorized: false },
+    tls: { rejectUnauthorized: false, checkServerIdentity: () => undefined },
+    connectionTimeout: 15000,
   });
   try {
     await transporter.sendMail({
@@ -27,9 +28,40 @@ async function sendEmail(to: string, subject: string, html: string) {
       subject,
       html,
     });
+    console.log(`✉️ Email enviado a ${to}`);
   } catch (err) {
     console.error("❌ Error enviando email:", err);
   }
+}
+
+// ─── Plantilla de Email: Renovación Exitosa ───────────────────────────────────
+function buildRenewalEmail(firstName: string, amount: number, nextRenewalDate: string): string {
+  const formattedAmount = amount.toFixed(2).replace('.', ',');
+  return "<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'></head>" +
+    "<body style='margin:0;padding:0;background-color:#faf8f5;font-family:Helvetica,Arial,sans-serif;'>" +
+    "<table width='100%' cellpadding='0' cellspacing='0' style='background-color:#faf8f5;padding:40px 20px;'>" +
+    "<tr><td align='center'>" +
+    "<table width='600' cellpadding='0' cellspacing='0' style='max-width:600px;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,0.05);'>" +
+    "<tr><td style='background:linear-gradient(135deg,#b2dfdb,#80cbc4);padding:40px 32px;text-align:center;'>" +
+    "<h1 style='margin:0;color:#ffffff;font-size:28px;'>✅ Suscripción Renovada</h1>" +
+    "<p style='margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:16px;'>Club Creativo Meraki ArteSano</p>" +
+    "</td></tr>" +
+    "<tr><td style='padding:32px;text-align:center;'>" +
+    "<p style='font-size:18px;color:#1e293b;line-height:1.6;'>Hola, <strong>" + firstName + "</strong> 👋</p>" +
+    "<p style='font-size:16px;color:#64748b;line-height:1.6;'>Tu suscripción mensual a la Academia ha sido renovada con éxito. Ya puedes seguir disfrutando de todas las clases y materiales.</p>" +
+    "<div style='background-color:#f8fafc;border-radius:12px;padding:24px;margin:24px 0;border-left:4px solid #80cbc4;text-align:left;'>" +
+    "<p style='margin:0;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:1px;'>Detalle del cobro</p>" +
+    "<p style='margin:10px 0 0;font-size:28px;font-weight:bold;color:#1e293b;'>€" + formattedAmount + "</p>" +
+    "<p style='margin:8px 0 0;font-size:14px;color:#64748b;'>Próxima renovación: <strong>" + nextRenewalDate + "</strong></p>" +
+    "</div>" +
+    "<div style='margin-top:24px;'>" +
+    "<a href='https://merakiartesano.es/academia' style='background-color:#80cbc4;color:white;padding:16px 32px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;font-size:16px;'>Ir a Mi Academia</a>" +
+    "</div>" +
+    "</td></tr>" +
+    "<tr><td style='background-color:#f8fafc;padding:24px 32px;text-align:center;border-top:1px solid #f1f5f9;'>" +
+    "<p style='margin:0;font-size:14px;color:#94a3b8;'>¿Quieres cancelar tu suscripción? Escríbenos a <a href='mailto:hola@merakiartesano.es' style='color:#80cbc4;'>hola@merakiartesano.es</a></p>" +
+    "</td></tr>" +
+    "</table></td></tr></table></body></html>";
 }
 
 // ─── Redsys Signature Helpers ──────────────────────────────────────────────────
@@ -176,7 +208,6 @@ Deno.serve(async (req) => {
 
           // Crear pedido en la tabla orders para que Conchi lo vea
           await supabaseAdmin.from("orders").insert({
-            user_id: sub.user_id,
             status: 'Pagado',
             total_amount: price,
             customer_email: sub.profiles?.email,
@@ -184,6 +215,17 @@ Deno.serve(async (req) => {
             redsys_order_id: orderId,
             is_academy_renewal: true
           });
+
+          // Email de confirmación de renovación al alumno
+          if (sub.profiles?.email) {
+            const nextRenewalStr = `20/${(nextPeriod.getUTCMonth() + 1).toString().padStart(2, '0')}/${nextPeriod.getUTCFullYear()}`;
+            const firstName = sub.profiles.first_name || sub.profiles.full_name?.split(' ')[0] || 'alumna';
+            await sendEmail(
+              sub.profiles.email,
+              `✅ Tu suscripción a Meraki ArteSano ha sido renovada`,
+              buildRenewalEmail(firstName, price, nextRenewalStr)
+            );
+          }
 
           results.push(`✅ ${sub.user_id}: Success`);
         } else {

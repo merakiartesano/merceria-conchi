@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
-import { Video, Loader2, LogOut, Lock, Calendar as CalendarIcon, X, Mail } from 'lucide-react';
+import { Video, Loader2, LogOut, Lock, Calendar as CalendarIcon, X, Mail, FileText, CheckCircle, XCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const Academy = () => {
@@ -17,6 +17,7 @@ const Academy = () => {
     const [loading, setLoading] = useState(true);
     const [debugContext, setDebugContext] = useState('');
     const [isManageModalOpen, setIsManageModalOpen] = useState(false);
+    const [userOrders, setUserOrders] = useState([]);
     
     const [profile, setProfile] = useState({
         first_name: '',
@@ -68,6 +69,15 @@ const Academy = () => {
                             pickup_pref: profileData.pickup_pref || false
                         });
                     }
+
+                    // Fetch user's order history
+                    const { data: ordersData } = await supabase
+                        .from('orders')
+                        .select('id, created_at, status, total_amount, is_academy_renewal, redsys_order_id')
+                        .eq('customer_email', user.email)
+                        .order('created_at', { ascending: false });
+                    
+                    if (isMounted) setUserOrders(ordersData || []);
                 }
 
                 // Fetch settings for live class
@@ -435,8 +445,9 @@ const Academy = () => {
                         )}
                     </>
                 ) : (
-                    /* My Data / Profile Tab */
-                    <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', maxWidth: '800px' }}>
+                    <>
+                        {/* My Data / Profile Tab */}
+                        <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', maxWidth: '800px' }}>
                         <h2 style={{ fontSize: '1.8rem', color: '#2d3748', marginBottom: '10px', fontFamily: 'var(--font-serif)' }}>{t('profile.title')}</h2>
                         <p style={{ color: '#718096', marginBottom: '30px' }}>{t('profile.subtitle')}</p>
 
@@ -520,6 +531,50 @@ const Academy = () => {
                             </button>
                         </form>
                     </div>
+
+                    {/* Historial de Pagos del Usuario */}
+                    <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', maxWidth: '800px', marginTop: '30px' }}>
+                        <h2 style={{ fontSize: '1.5rem', color: '#2d3748', marginBottom: '10px', fontFamily: 'var(--font-serif)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <FileText size={24} color="var(--color-primary)" />
+                            Historial de Pagos y Suscripciones
+                        </h2>
+                        <p style={{ color: '#718096', marginBottom: '30px' }}>Aquí puedes ver el histórico de todos tus pagos realizados.</p>
+
+                        {userOrders.length === 0 ? (
+                            <p style={{ color: '#a0aec0', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>No hay pagos registrados aún.</p>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                {userOrders.map(order => (
+                                    <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: order.is_academy_renewal ? '#fcfafb' : '#fff' }}>
+                                        <div>
+                                            <p style={{ fontWeight: '600', color: '#2d3748', margin: '0 0 5px 0' }}>{order.is_academy_renewal ? 'Renovación Academia' : 'Pedido de Tienda / Alta Academia'}</p>
+                                            <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0 }}>
+                                                {new Date(order.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
+                                                {order.redsys_order_id && ` • Ref: ${order.redsys_order_id}`}
+                                            </p>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', fontSize: '1.1rem', margin: '0 0 5px 0' }}>{order.total_amount} €</p>
+                                            <span style={{ 
+                                                fontSize: '0.8rem', 
+                                                padding: '4px 10px', 
+                                                borderRadius: '20px', 
+                                                backgroundColor: order.status === 'Pagado' ? '#e6fffa' : '#fff5f5', 
+                                                color: order.status === 'Pagado' ? '#319795' : '#e53e3e',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}>
+                                                {order.status === 'Pagado' ? <CheckCircle size={12} /> : <XCircle size={12} />}
+                                                {order.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    </>
                 )}
 
             </div>
