@@ -48,14 +48,14 @@ function buildRenewalEmail(firstName: string, amount: number, nextRenewalDate: s
     "</td></tr>" +
     "<tr><td style='padding:32px;text-align:center;'>" +
     "<p style='font-size:18px;color:#1e293b;line-height:1.6;'>Hola, <strong>" + firstName + "</strong> 👋</p>" +
-    "<p style='font-size:16px;color:#64748b;line-height:1.6;'>Tu suscripción mensual a la Academia ha sido renovada con éxito. Ya puedes seguir disfrutando de todas las clases y materiales.</p>" +
+    "<p style='font-size:16px;color:#64748b;line-height:1.6;'>Tu suscripción mensual al Club ha sido renovada con éxito. Ya puedes seguir disfrutando de todas las clases y materiales.</p>" +
     "<div style='background-color:#f8fafc;border-radius:12px;padding:24px;margin:24px 0;border-left:4px solid #80cbc4;text-align:left;'>" +
     "<p style='margin:0;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:1px;'>Detalle del cobro</p>" +
     "<p style='margin:10px 0 0;font-size:28px;font-weight:bold;color:#1e293b;'>€" + formattedAmount + "</p>" +
     "<p style='margin:8px 0 0;font-size:14px;color:#64748b;'>Próxima renovación: <strong>" + nextRenewalDate + "</strong></p>" +
     "</div>" +
     "<div style='margin-top:24px;'>" +
-    "<a href='https://merakiartesano.es/academia' style='background-color:#80cbc4;color:white;padding:16px 32px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;font-size:16px;'>Ir a Mi Academia</a>" +
+    "<a href='https://merakiartesano.es/academia' style='background-color:#80cbc4;color:white;padding:16px 32px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;font-size:16px;'>Ir a Mi Club</a>" +
     "</div>" +
     "</td></tr>" +
     "<tr><td style='background-color:#f8fafc;padding:24px 32px;text-align:center;border-top:1px solid #f1f5f9;'>" +
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     : "https://sis-t.redsys.es:25443/sis/rest/trataPeticionREST";
 
   try {
-    // 1. Obtener precio de la academia
+    // 1. Obtener precio del Club
     const { data: settings } = await supabaseAdmin.from("academy_settings").select("subscription_price").eq("id", 1).single();
     const price = parseFloat(settings?.subscription_price || "50.0");
     const amountCents = Math.round(price * 100).toString();
@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
             const firstName = sub.profiles.first_name || sub.profiles.full_name?.split(' ')[0] || 'alumna';
             await sendEmail(
               sub.profiles.email,
-              `✅ Tu suscripción a Meraki ArteSano ha sido renovada`,
+              `✅ Tu suscripción al Club Meraki ArteSano ha sido renovada`,
               buildRenewalEmail(firstName, price, nextRenewalStr)
             );
           }
@@ -241,8 +241,8 @@ Deno.serve(async (req) => {
           if (sub.profiles?.email) {
             await sendEmail(
               sub.profiles.email,
-              "⚠️ Problema con tu suscripción a Meraki ArteSano",
-              `<p>Hola,</p><p>No hemos podido procesar el cobro mensual de tu suscripción a la Academia. 
+              "⚠️ Problema con tu suscripción al Club Meraki ArteSano",
+              `<p>Hola,</p><p>No hemos podido procesar el cobro mensual de tu suscripción al Club. 
                Por favor, accede a <a href="https://merakiartesano.es/academia">tu cuenta</a> para actualizar tu método de pago y seguir disfrutando de las clases.</p>`
             );
           }

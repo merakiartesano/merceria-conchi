@@ -47,7 +47,12 @@ const Cart = () => {
                                     <div className="cart-item-image" style={{ backgroundImage: `url(${item.image_url})` }}></div>
                                     <div className="cart-item-details">
                                         <h4>{item.name}</h4>
-                                        <p className="cart-item-price">€{Number(item.price).toFixed(2)}</p>
+                                        <div className="cart-item-pricing-row">
+                                            <p className="cart-item-price">€{Number(item.price).toFixed(2)}</p>
+                                            <p className="cart-item-subtotal">
+                                                Subtotal: <strong>€{(Number(item.price) * item.quantity).toFixed(2)}</strong>
+                                            </p>
+                                        </div>
 
                                         <div className="cart-item-actions">
                                             <div className="quantity-controls">

@@ -374,40 +374,36 @@ const Academy = () => {
 
                                 {/* Academy Calendar Section */}
                                 <div style={{ backgroundColor: '#1a202c', color: '#fff', padding: '50px 40px', borderRadius: '24px', boxShadow: '0 20px 50px rgba(0,0,0,0.15)', marginBottom: '60px', position: 'relative' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '35px' }}>
-                                        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                                            <CalendarIcon size={32} color="#2d3748" />
-                                        </div>
-                                        <h2 style={{ color: '#63b3ed', fontSize: '2.5rem', margin: 0, fontFamily: 'var(--font-serif)', fontWeight: '700' }}>
-                                            {t('academy.calendarTitle') || 'Calendario Mensual'}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '25px' }}>
+                                        <Video size={28} color="#38bdf8" />
+                                        <h2 style={{ color: '#38bdf8', fontSize: '1.8rem', margin: 0, fontWeight: '700', display: 'flex', alignItems: 'center' }}>
+                                            {t('clases.pricing.cal.title')}
                                         </h2>
                                     </div>
 
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-                                        {settings?.calendar_text ? settings.calendar_text.split('\n').map((line, idx) => {
-                                            if (!line.trim()) return <div key={idx} style={{ height: '10px' }}></div>;
-                                            
-                                            // Special styling for headers if needed (simple check)
-                                            const isHeader = line.includes('📅');
-                                            if (isHeader) return null; // We already have the header
-
-                                            const parts = line.split('→');
-                                            return (
-                                                <div key={idx} style={{ fontSize: '1.45rem', display: 'flex', alignItems: 'flex-start', gap: '10px', lineHeight: '1.4' }}>
-                                                    {parts.length > 1 ? (
-                                                        <>
-                                                            <span style={{ color: '#fff', fontWeight: '500', whiteSpace: 'nowrap' }}>{parts[0].trim()}</span>
-                                                            <span style={{ color: '#63b3ed', fontWeight: 'bold' }}>→</span>
-                                                            <span style={{ color: '#e2e8f0', fontWeight: '300' }}>{parts[1].trim()}</span>
-                                                        </>
-                                                    ) : (
-                                                        <span style={{ color: '#e2e8f0', fontWeight: '300' }}>{line}</span>
-                                                    )}
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+                                        {[
+                                            { range: t('clases.pricing.cal.li1').split(' → ')[0], text: t('clases.pricing.cal.li1').split(' → ')[1], icon: '📦' },
+                                            { range: t('clases.pricing.cal.li2').split(' → ')[0], text: t('clases.pricing.cal.li2').split(' → ')[1], icon: '🚚' },
+                                            { range: t('clases.pricing.cal.li3').split(' → ')[0], text: t('clases.pricing.cal.li3').split(' → ')[1], icon: '🎥' },
+                                            { range: t('clases.pricing.cal.li4').split(' → ')[0], text: t('clases.pricing.cal.li4').split(' → ')[1], icon: '📼' }
+                                        ].map((item, idx) => (
+                                            <div key={idx} style={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: '15px', 
+                                                backgroundColor: 'rgba(255,255,255,0.03)', 
+                                                padding: '16px 20px', 
+                                                borderRadius: '16px',
+                                                border: '1px solid rgba(255,255,255,0.05)'
+                                            }}>
+                                                <span style={{ fontSize: '1.8rem' }}>{item.icon}</span>
+                                                <div>
+                                                    <div style={{ fontSize: '1rem', fontWeight: '700', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{item.range}</div>
+                                                    <div style={{ fontSize: '1.1rem', color: '#e2e8f0' }}>{item.text}</div>
                                                 </div>
-                                            );
-                                        }) : (
-                                            <p style={{ color: '#a0aec0', fontStyle: 'italic' }}>No hay eventos programados para este mes.</p>
-                                        )}
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
 
@@ -536,18 +532,18 @@ const Academy = () => {
                     <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '24px', boxShadow: '0 10px 40px rgba(0,0,0,0.06)', maxWidth: '800px', marginTop: '30px' }}>
                         <h2 style={{ fontSize: '1.5rem', color: '#2d3748', marginBottom: '10px', fontFamily: 'var(--font-serif)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <FileText size={24} color="var(--color-primary)" />
-                            Historial de Pagos y Suscripciones
+                            Historial de Pagos del Club
                         </h2>
                         <p style={{ color: '#718096', marginBottom: '30px' }}>Aquí puedes ver el histórico de todos tus pagos realizados.</p>
 
                         {userOrders.length === 0 ? (
-                            <p style={{ color: '#a0aec0', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>No hay pagos registrados aún.</p>
+                            <p style={{ color: '#a0aec0', fontStyle: 'italic', textAlign: 'center', padding: '20px' }}>No hay registros de pagos aún.</p>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                                 {userOrders.map(order => (
                                     <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', border: '1px solid #e2e8f0', borderRadius: '12px', backgroundColor: order.is_academy_renewal ? '#fcfafb' : '#fff' }}>
                                         <div>
-                                            <p style={{ fontWeight: '600', color: '#2d3748', margin: '0 0 5px 0' }}>{order.is_academy_renewal ? 'Renovación Academia' : 'Pedido de Tienda / Alta Academia'}</p>
+                                            <p style={{ fontWeight: '600', color: '#2d3748', margin: '0 0 5px 0' }}>{order.is_academy_renewal ? 'Renovación Club' : 'Pedido de Tienda / Alta del Club'}</p>
                                             <p style={{ fontSize: '0.85rem', color: '#718096', margin: 0 }}>
                                                 {new Date(order.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
                                                 {order.redsys_order_id && ` • Ref: ${order.redsys_order_id}`}

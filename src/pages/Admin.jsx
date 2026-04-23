@@ -369,10 +369,10 @@ const Admin = () => {
                 .order('created_at', { ascending: false });
             if (error) throw error;
 
-            // Filtrar SOLO los pagos relacionados con la academia (renovaciones automáticas)
+            // Filtrar SOLO los pagos relacionados con el club (renovaciones automáticas)
             let academyOrders = (data || []).filter(o => o.is_academy_renewal === true);
             
-            // Añadir manualmente el registro de "Alta Academia" usando los datos de la suscripción
+            // Añadir manualmente el registro de "Alta Club" usando los datos de la suscripción
             const sub = user.subscriptions?.[0];
             // Para asegurar que el ALTA siempre aparezca, verificamos que tenga referencia de redsys
             if (sub && sub.redsys_order_id) {
@@ -381,7 +381,7 @@ const Admin = () => {
                     academyOrders.push({
                         id: 'alta-' + sub.redsys_order_id,
                         created_at: user.created_at || new Date().toISOString(),
-                        total_amount: 50, // Importe fijo del alta de la academia
+                        total_amount: 50, // Importe fijo del alta del club
                         is_academy_renewal: false, 
                         is_academy_alta: true, // Flag específico para renderizar
                         redsys_order_id: sub.redsys_order_id,
@@ -512,7 +512,7 @@ const Admin = () => {
     };
 
     const handleSendReminder = async () => {
-        if (!window.confirm("¿Seguro que quieres enviar el recordatorio de clase por correo a TODAS las suscriptoras activas?")) return;
+        if (!window.confirm("¿Seguro que quieres enviar el recordatorio de clase por correo a TODOS los socios/as activos/as del club?")) return;
         
         setIsReminding(true);
         setRemindMsg({ text: '', type: '' });
@@ -665,7 +665,7 @@ const Admin = () => {
     };
 
     const handleDeleteVideo = async (id) => {
-        if (!window.confirm("¿Seguro que quieres borrar este vídeo de la academia?")) return;
+        if (!window.confirm("¿Seguro que quieres borrar este vídeo del club?")) return;
         try {
             await deleteAcademyVideo(id);
             fetchVideosData();
@@ -859,11 +859,11 @@ const Admin = () => {
                     </button>
                     <button className={`admin-nav-item ${activeTab === 'academy' ? 'active' : ''}`} onClick={() => setActiveTab('academy')}>
                         <Settings size={20} />
-                        <span>Ajustes Academia</span>
+                        <span>Ajustes del Club</span>
                     </button>
                     <button className={`admin-nav-item ${activeTab === 'subscribers' ? 'active' : ''}`} onClick={() => setActiveTab('subscribers')}>
                         <Users size={20} />
-                        <span>Suscriptores</span>
+                        <span>Socios/as del Club</span>
                     </button>
                     <button className={`admin-nav-item ${activeTab === 'shipping' ? 'active' : ''}`} onClick={() => setActiveTab('shipping')}>
                         <Truck size={20} />
@@ -1190,7 +1190,7 @@ const Admin = () => {
                     <>
                         <header className="admin-header">
                             <div>
-                                <h1 className="admin-title">Configuración de la Academia</h1>
+                                <h1 className="admin-title">Configuración del Club</h1>
                                 <p className="admin-subtitle">Gestiona las clases, suscripciones y contenido exclusivo.</p>
                             </div>
                         </header>
@@ -1227,7 +1227,7 @@ const Admin = () => {
                                             onChange={(e) => setAcademySettings({ ...academySettings, subscriptionPrice: e.target.value })}
                                             placeholder="50.00"
                                         />
-                                        <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Este es el importe que se cobrará automáticamente cada mes a las alumnas.</p>
+                                        <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Este es el importe que se cobrará automáticamente cada mes a los socios/as.</p>
                                     </div>
                                     <div className="input-group">
                                         <label>Límite de Plazas</label>
@@ -1243,6 +1243,7 @@ const Admin = () => {
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem', marginTop: '1.5rem' }}>
+                                    {/* 
                                     <div className="form-group grid-col-span-2">
                                         <label className="form-label">Características (una por línea)</label>
                                         <textarea
@@ -1253,7 +1254,9 @@ const Admin = () => {
                                         ></textarea>
                                         <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '4px' }}>Cada línea será un ✓ en la página pública.</p>
                                     </div>
+                                    */}
 
+                                    {/* 
                                     <div className="form-group grid-col-span-2">
                                         <label className="form-label">Calendario Mensual (Editable)</label>
                                         <textarea
@@ -1264,11 +1267,13 @@ const Admin = () => {
                                             placeholder="Ej: Día 1 al 5 -> Preparación de kits..."
                                         ></textarea>
                                         <p style={{ fontSize: '0.8rem', color: '#718096', marginTop: '5px' }}>
-                                            Usa este cuadro para actualizar la programación que ven las alumnas.
+                                            Usa este cuadro para actualizar la programación que ven los socios/as.
                                         </p>
                                     </div>
+                                    */}
                                 </div>
 
+                                {/* 
                                 <div className="input-group" style={{ marginTop: '1.5rem' }}>
                                     <label>Mensaje de Bienvenida del Portal</label>
                                     <textarea
@@ -1278,9 +1283,11 @@ const Admin = () => {
                                         placeholder="¡Hola! Esta semana estaremos tejiendo..."
                                     />
                                 </div>
+                                */}
 
+                                {/* 
                                 <div style={{ marginTop: '2.5rem', marginBottom: '1.5rem', color: 'var(--color-primary)', borderBottom: '1px solid #e1e8f0', paddingBottom: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <h3 style={{ margin: 0 }}>Acciones de Academia</h3>
+                                    <h3 style={{ margin: 0 }}>Acciones del Club</h3>
                                 </div>
                                 <div style={{ display: 'flex', gap: '16px', flexDirection: 'column' }}>
                                     {remindMsg.text && (
@@ -1293,12 +1300,13 @@ const Admin = () => {
                                         {isReminding ? 'Enviando recordatorios...' : 'Enviar recordatorio de próxima clase por Email'}
                                     </button>
                                 </div>
+                                */}
 
                                 <div className="modal-footer" style={{ marginTop: '3rem', flexDirection: 'column', alignItems: 'flex-start', gap: '12px', borderTop: '2px dashed #e2e8f0', paddingTop: '2rem' }}>
                                     {settingsSaved && <p style={{ color: '#065f46', background: '#d1fae5', padding: '10px 16px', borderRadius: '8px', margin: 0, fontWeight: '500', width: '100%' }}>✅ ¡Ajustes guardados correctamente!</p>}
                                     {settingsError && <p style={{ color: '#991b1b', background: '#fee2e2', padding: '10px 16px', borderRadius: '8px', margin: 0, fontWeight: '500', width: '100%' }}>❌ {settingsError}</p>}
                                     <button type="submit" className="btn btn-primary d-flex align-center gap-sm" disabled={settingsSaving}>
-                                        {settingsSaving ? <Loader size={20} className="animate-spin" /> : <><Save size={20} /> Guardar Ajustes de Academia</>}
+                                        {settingsSaving ? <Loader size={20} className="animate-spin" /> : <><Save size={20} /> Guardar Ajustes del Club</>}
                                     </button>
                                 </div>
                             </form>
@@ -1309,7 +1317,7 @@ const Admin = () => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderBottom: '1px solid #e1e8f0', paddingBottom: '1rem' }}>
                                 <div>
                                     <h3 style={{ color: 'var(--color-primary)', margin: 0, fontSize: '1.4rem' }}>Videoteca Grabada</h3>
-                                    <p style={{ color: '#718096', fontSize: '0.9rem', marginTop: '0.5rem' }}>Añade clases antiguas para que las alumnas puedan verlas en cualquier momento.</p>
+                                    <p style={{ color: '#718096', fontSize: '0.9rem', marginTop: '0.5rem' }}>Añade clases antiguas para que los socios/as puedan verlas en cualquier momento.</p>
                                 </div>
                                 <button type="button" onClick={() => handleOpenVideoModal(null)} className="btn btn-primary d-flex align-center gap-sm" style={{ padding: '8px 16px', borderRadius: '8px' }}>
                                     <Plus size={18} /> Añadir Vídeo
@@ -1362,8 +1370,8 @@ const Admin = () => {
                     <>
                         <header className="admin-header">
                             <div>
-                                <h1 className="admin-title">Suscriptoras de la Academia</h1>
-                                <p className="admin-subtitle">Alumnas registradas y estado de su suscripción mensual.</p>
+                                <h1 className="admin-title">Socios/as del Club</h1>
+                                <p className="admin-subtitle">Socio/as registrado/as y estado de su suscripción mensual.</p>
                             </div>
                         </header>
 
@@ -1389,7 +1397,7 @@ const Admin = () => {
                                 <table className="data-table">
                                     <thead>
                                         <tr>
-                                            <th>Alumna</th>
+                                            <th>Socio/a</th>
                                             <th>Correo</th>
                                             <th>Teléfono</th>
                                             <th>Estado</th>
@@ -1408,7 +1416,7 @@ const Admin = () => {
                                         ) : subscribers.length === 0 ? (
                                             <tr><td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                                 <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🧵</div>
-                                                <p style={{ margin: 0 }}>Todavía no hay alumnas registradas.</p>
+                                                <p style={{ margin: 0 }}>Todavía no hay socios/as registrados.</p>
                                                 <p style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>Cuando alguien se registre aparecerá aquí.</p>
                                             </td></tr>
                                         ) : (
@@ -1478,7 +1486,7 @@ const Admin = () => {
                                                                         borderRadius: '12px',
                                                                         cursor: 'pointer'
                                                                     }}
-                                                                    title="Quitar acceso a la alumna"
+                                                                    title="Quitar acceso al socio/a"
                                                                 >
                                                                     🗑️ Dar de Baja
                                                                 </button>
@@ -1779,7 +1787,7 @@ const Admin = () => {
                 <div className="admin-modal-overlay">
                     <div className="admin-modal">
                         <div className="modal-header">
-                            <h3>{editingVideo ? 'Editar Vídeo de la Academia' : 'Añadir Nuevo Vídeo'}</h3>
+                            <h3>{editingVideo ? 'Editar Vídeo del Club' : 'Añadir Nuevo Vídeo'}</h3>
                             <button type="button" onClick={handleCloseVideoModal} className="btn-icon-small"><X size={20} /></button>
                         </div>
                         <form onSubmit={handleSaveVideo} className="modal-body">
@@ -1838,45 +1846,37 @@ const Admin = () => {
                     </div>
                 </div>
             )}
-            {/* --- MODAL HISTORIAL DE PAGOS SUSCRIPCION --- */}
+            {/* --- MODAL HISTORIAL DE PAGOS CLUB --- */}
             {isHistoryModalOpen && selectedHistoryUser && (
                 <div className="admin-modal-overlay">
-                    <div className="admin-modal" style={{ maxWidth: '650px', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+                    <div className="admin-modal" style={{ maxWidth: '600px' }}>
                         <div className="modal-header">
-                            <h3>
-                                <FileText size={20} style={{ verticalAlign: 'middle', marginRight: '8px', color: 'var(--color-primary)' }} /> 
-                                Historial de Pagos de {selectedHistoryUser.first_name || 'la alumna'}
-                            </h3>
-                            <button onClick={() => setIsHistoryModalOpen(false)} className="btn-icon-small"><X size={20} /></button>
+                            <h3>Historial de Pagos del Club</h3>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b' }}>{selectedHistoryUser?.first_name} {selectedHistoryUser?.last_name}</p>
+                            <button onClick={() => setIsHistoryModalOpen(false)} className="btn-icon-small" style={{ marginLeft: 'auto' }}><X size={20} /></button>
                         </div>
-                        <div className="modal-body" style={{ overflowY: 'auto', padding: '20px' }}>
-                            <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>
-                                A continuación se muestran todos los cobros (tienda y academia) asociados al email <strong>{selectedHistoryUser.email}</strong>.
-                            </p>
-                            
+                        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '20px' }}>
                             {loadingHistory ? (
-                                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                                    <Loader size={30} className="animate-spin" color="var(--color-primary)" />
+                                <div style={{ textAlign: 'center', padding: '2rem' }}>
+                                    <Loader className="animate-spin" size={24} style={{ color: 'var(--color-primary)' }} />
                                 </div>
                             ) : historyOrders.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                                    <p>No se han encontrado pagos para esta alumna.</p>
-                                </div>
+                                <p style={{ textAlign: 'center', color: '#64748b', padding: '1rem' }}>No hay registros de pagos para este socio/a.</p>
                             ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                <div className="history-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                     {historyOrders.map(order => (
                                         <div key={order.id} style={{ 
-                                            display: 'flex', 
-                                            justifyContent: 'space-between', 
-                                            alignItems: 'center', 
                                             padding: '15px 20px', 
                                             border: '1px solid #e2e8f0', 
                                             borderRadius: '12px', 
-                                            backgroundColor: '#fdf8fa' 
+                                            backgroundColor: '#fdf8fa',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
                                         }}>
                                             <div>
                                                 <p style={{ fontWeight: '600', color: '#1e293b', margin: '0 0 5px 0' }}>
-                                                    {order.is_academy_alta ? '🎓 Alta Academia' : '🌺 Renovación Academia'}
+                                                    {order.is_academy_alta ? '🎓 Alta Club' : '🌺 Renovación Club'}
                                                 </p>
                                                 <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
                                                     {new Date(order.created_at).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })} a las {new Date(order.created_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
@@ -1955,7 +1955,7 @@ const Admin = () => {
                     </div>
                 </div>
             )}
-            {/* --- MODAL CONFIRMACIÓN BAJA ACADEMIA --- */}
+            {/* --- MODAL CONFIRMACIÓN BAJA CLUB --- */}
             {isCancelModalOpen && (
                 <div className="admin-modal-overlay">
                     <div className="admin-modal" style={{ maxWidth: '450px', padding: '0' }}>
@@ -1966,7 +1966,7 @@ const Admin = () => {
                         
                         <div className="modal-body" style={{ padding: '25px' }}>
                             <p style={{ margin: '0 0 20px 0', fontSize: '1rem', lineHeight: '1.5', color: '#1e293b' }}>
-                                ¿Estás segura de revocar el acceso a la academia para la alumna <strong>{subToCancel.name}</strong>?
+                                ¿Estás segura de revocar el acceso al club para el socio/a <strong>{subToCancel.name}</strong>?
                             </p>
                             
                             {subToCancel.redsysIdentifier ? (
@@ -2022,7 +2022,7 @@ const Admin = () => {
                             )}
 
                             <p style={{ margin: '0 0 25px 0', fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
-                                Una vez confirmes aquí, la alumna dejará de tener acceso a los contenidos de la academia inmediatamente.
+                                Una vez confirmes aquí, el socio/a dejará de tener acceso a los contenidos del club inmediatamente.
                             </p>
 
 

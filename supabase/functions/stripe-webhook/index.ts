@@ -41,13 +41,13 @@ function buildSubscriptionWelcomeEmail(email: string): string {
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bienvenida a la Academia</title></head>
+<title>Bienvenida a la Club</title></head>
 <body style="margin:0;padding:0;background:#faf8f5;font-family:'Helvetica Neue',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#faf8f5;padding:40px 20px;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
         <tr><td style="background:linear-gradient(135deg,#f9a8d4,#6ee7b7);padding:40px 32px;text-align:center;">
-          <h1 style="margin:0;color:#fff;font-size:28px;font-weight:700;">¡Bienvenida a la Academia! 🧵</h1>
+          <h1 style="margin:0;color:#fff;font-size:28px;font-weight:700;">¡Bienvenida al Club! 🧵</h1>
           <p style="margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:16px;">Ya eres parte de la comunidad Meraki ArteSano</p>
         </td></tr>
         <tr><td style="padding:32px 32px 0;">
@@ -55,7 +55,7 @@ function buildSubscriptionWelcomeEmail(email: string): string {
             Tu suscripción está activa. Accede al portal para ver el enlace Zoom de la próxima clase y los materiales del proyecto de esta semana.
           </p>
           <div style="text-align:center;margin:32px 0;">
-            <a href="https://merakiartesano.es/academia" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;text-decoration:none;padding:16px 36px;border-radius:30px;font-size:17px;font-weight:700;display:inline-block;box-shadow:0 4px 14px rgba(245,158,11,0.35);">Ir a mi Academia →</a>
+            <a href="https://merakiartesano.es/Club" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;text-decoration:none;padding:16px 36px;border-radius:30px;font-size:17px;font-weight:700;display:inline-block;box-shadow:0 4px 14px rgba(245,158,11,0.35);">Ir a mi Club →</a>
           </div>
           <div style="background:#f8fafc;border-radius:10px;padding:20px 24px;border-left:4px solid #6ee7b7;margin-bottom:28px;">
             <p style="margin:0 0 8px;font-size:14px;color:#475569;font-weight:600;">¿Qué hacer ahora?</p>
@@ -271,7 +271,7 @@ serve(async (req) => {
               if (customerEmail) {
                 await sendEmail(
                   customerEmail,
-                  '🧵 ¡Bienvenida a la Academia Meraki ArteSano!',
+                  '🧵 ¡Bienvenida a la Club Meraki ArteSano!',
                   buildSubscriptionWelcomeEmail(customerEmail)
                 )
               }

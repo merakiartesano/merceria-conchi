@@ -150,7 +150,7 @@ Deno.serve(async (req: Request) => {
     );
   } catch (err: any) {
     console.error("Critical Error in redsys-create-subscription:", err);
-    return new Response(JSON.stringify({ error: "Error en el servidor de pagos de la academia: " + err.message }), {
+    return new Response(JSON.stringify({ error: "Error en el servidor de pagos del Club: " + err.message }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
   }

@@ -68,7 +68,7 @@ export const AvisoLegal = () => (
         </Section>
 
         <Section title="2. Objeto y condiciones de uso">
-            <p>El presente Aviso Legal regula el uso del sitio web <strong>merakiartesano.es</strong>, cuyo acceso y uso es de carácter libre y gratuito para los usuarios. No obstante, la utilización de determinados servicios (compra de productos, suscripción a la academia) puede estar condicionada a la previa aceptación de las condiciones específicas aplicables a los mismos.</p>
+            <p>El presente Aviso Legal regula el uso del sitio web <strong>merakiartesano.es</strong>, cuyo acceso y uso es de carácter libre y gratuito para los usuarios. No obstante, la utilización de determinados servicios (compra de productos, suscripción al club) puede estar condicionada a la previa aceptación de las condiciones específicas aplicables a los mismos.</p>
             <p>El usuario se compromete a hacer un uso adecuado de los contenidos y servicios disponibles, respetando la legalidad vigente y los derechos de terceros.</p>
         </Section>
 
@@ -113,7 +113,7 @@ export const PoliticaPrivacidad = () => (
                 <tbody>
                     {[
                         ['Nombre, email, teléfono, dirección', 'Gestión de pedidos y envíos', 'Ejecución de contrato'],
-                        ['Email y contraseña', 'Acceso a la academia online (Club Creativo MERAKI)', 'Ejecución de contrato'],
+                        ['Email y contraseña', 'Acceso al club online (Club Creativo MERAKI)', 'Ejecución de contrato'],
                         ['Datos de pago', 'Procesamiento del pago (gestionado por Redsys/Caja Rural)', 'Ejecución de contrato'],
                         ['Email', 'Envío de confirmaciones de pedido y comunicaciones del servicio', 'Interés legítimo'],
                     ].map(([dato, fin, base], i) => (
@@ -140,7 +140,7 @@ export const PoliticaPrivacidad = () => (
             <p>Conservamos tus datos personales el tiempo necesario para la prestación del servicio contratado y, posteriormente, durante los plazos legalmente establecidos:</p>
             <ul style={{ paddingLeft: '20px', lineHeight: '2' }}>
                 <li>Datos de pedidos: <strong>5 años</strong> (obligación fiscal y contable)</li>
-                <li>Datos de cuenta de academia: hasta que solicites la baja</li>
+                <li>Datos de cuenta del club: hasta que solicites la baja</li>
                 <li>Datos de suscripción: mientras la suscripción esté activa + 1 año</li>
             </ul>
         </Section>
@@ -183,7 +183,7 @@ export const PoliticaCookies = () => (
                 </thead>
                 <tbody>
                     {[
-                        ['sb-[id]-auth-token', 'Necesaria', 'Mantiene la sesión del usuario en la academia', 'Sesión'],
+                        ['sb-[id]-auth-token', 'Necesaria', 'Mantiene la sesión del usuario en el club', 'Sesión'],
                         ['meraki_cookie_consent', 'Necesaria', 'Guarda tus preferencias de cookies', '1 año'],
                         ['idioma / language', 'Funcional', 'Recuerda el idioma seleccionado', 'Persistente'],
                     ].map(([nombre, tipo, fin, dur], i) => (
@@ -221,7 +221,7 @@ export const PoliticaCookies = () => (
                 <li><a href="https://support.apple.com/es-es/guide/safari/sfri11471/mac" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>Safari</a></li>
                 <li><a href="https://support.microsoft.com/es-es/microsoft-edge/eliminar-las-cookies-en-microsoft-edge-63947406-40ac-c3b8-57b9-2a946a29ae09" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)' }}>Microsoft Edge</a></li>
             </ul>
-            <p>Ten en cuenta que deshabilitar las cookies necesarias puede afectar al funcionamiento de la web (p.ej. no podrás mantener la sesión en la academia).</p>
+            <p>Ten en cuenta que deshabilitar las cookies necesarias puede afectar al funcionamiento de la web (p.ej. no podrás mantener la sesión en el club).</p>
         </Section>
     </LegalLayout>
 );
@@ -243,7 +243,7 @@ export const CondicionesCompra = () => (
             <p>A través de <strong>merakiartesano.es</strong> se pueden adquirir dos tipos de productos:</p>
             <ul style={{ paddingLeft: '20px', lineHeight: '2' }}>
                 <li><strong>Productos físicos</strong> (materiales de costura y mercería): se envían al domicilio indicado por el comprador.</li>
-                <li><strong>Suscripción al Club Creativo MERAKI</strong> (academia online): servicio de acceso a clases y contenidos digitales con facturación mensual recurrente.</li>
+                <li><strong>Suscripción al Club Creativo MERAKI</strong> (club online): servicio de acceso a clases y contenidos digitales con facturación mensual recurrente.</li>
             </ul>
         </Section>
 
@@ -283,7 +283,7 @@ export const CondicionesCompra = () => (
         <Section title="7. Derecho de desistimiento">
             <p>De acuerdo con el <strong>Real Decreto Legislativo 1/2007 (TRLGDCU)</strong>, tienes derecho a desistir del contrato en un plazo de <strong>14 días naturales</strong> desde la recepción del pedido, sin necesidad de indicar el motivo.</p>
             <p>Para ejercer este derecho, contacta con nosotros en <a href="mailto:hola@merakiartesano.es" style={{ color: 'var(--color-primary)' }}>hola@merakiartesano.es</a> indicando el número de pedido. Los gastos de devolución correrán a cargo del comprador salvo que el producto llegue defectuoso o sea incorrecto.</p>
-            <p><strong>Excepción:</strong> Los contenidos digitales descargados o el acceso a la academia una vez activado no son reembolsables, de acuerdo con el artículo 103.m) del TRLGDCU.</p>
+            <p><strong>Excepción:</strong> Los contenidos digitales descargados o el acceso al club una vez activado no son reembolsables, de acuerdo con el artículo 103.m) del TRLGDCU.</p>
         </Section>
 
         <Section title="8. Garantías y reclamaciones">
@@ -291,7 +291,7 @@ export const CondicionesCompra = () => (
         </Section>
 
         <Section title="9. Suscripción al Club Creativo MERAKI">
-            <p>La suscripción a la academia tiene una duración mensual y se renueva automáticamente cada mes. Puedes cancelar en cualquier momento desde tu área de cliente o contactando con nosotros. La cancelación aplicará al siguiente período de facturación; no se realizan reembolsos del período en curso.</p>
+            <p>La suscripción al club tiene una duración mensual y se renueva automáticamente cada mes. Puedes cancelar en cualquier momento desde tu área de cliente o contactando con nosotros. La cancelación aplicará al siguiente período de facturación; no se realizan reembolsos del período en curso.</p>
         </Section>
 
         <Section title="10. Legislación aplicable">

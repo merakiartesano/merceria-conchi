@@ -172,7 +172,7 @@ const PedidoConfirmado = () => {
                         onMouseEnter={e => e.currentTarget.style.backgroundColor = 'var(--color-accent-hover)'}
                         onMouseLeave={e => e.currentTarget.style.backgroundColor = 'var(--color-accent)'}
                     >
-                        {isSubscription ? "Ir a la Academia" : "Seguir comprando"}
+                        {isSubscription ? "Ir al Club" : "Seguir comprando"}
                         <ArrowRight size={18} />
                     </Link>
 

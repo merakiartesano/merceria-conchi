@@ -122,7 +122,7 @@ serve(async (req) => {
       <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
         <tr><td style="background:linear-gradient(135deg,#f59e0b,#fbbf24);padding:40px 32px;text-align:center;">
           <h1 style="margin:0;color:#fff;font-size:26px;font-weight:700;">¡Recordatorio de Clase! 🧵</h1>
-          <p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:16px;">Academia Meraki ArteSano</p>
+          <p style="margin:8px 0 0;color:rgba(255,255,255,0.95);font-size:16px;">Club Meraki ArteSano</p>
         </td></tr>
         <tr><td style="padding:32px 32px 0;">
           <p style="color:#334155;font-size:16px;line-height:1.7;margin:0 0 20px;">Hola ${profile.first_name || ''},</p>

@@ -336,20 +336,7 @@ const Checkout = () => {
                 });
 
                 if (redsysError) throw new Error('No se pudo iniciar el pago con Redsys.');
-
-                // === DEBUG TEMPORAL — borrar en producción ===
-                console.log('[REDSYS DEBUG] Respuesta edge function:', JSON.stringify(redsysSession));
-                const b64 = redsysSession?.Ds_MerchantParameters ?? '';
-                console.log('[REDSYS DEBUG] Ds_MerchantParameters (longitud):', b64.length);
-                console.log('[REDSYS DEBUG] Tiene padding =:', b64.endsWith('='));
-                console.log('[REDSYS DEBUG] Tiene chars - o _:', b64.includes('-') || b64.includes('_'));
-                try {
-                    const decoded = atob(b64);
-                    console.log('[REDSYS DEBUG] JSON decodificado:', decoded);
-                } catch(e) {
-                    console.error('[REDSYS DEBUG] ERROR decodificando Base64:', e.message);
-                }
-                // === FIN DEBUG ===
+                if (redsysSession?.error) throw new Error(redsysSession.error);
 
                 // 4. Redirigir al TPV Redsys mediante formulario auto-submit
                 const form = document.createElement('form');

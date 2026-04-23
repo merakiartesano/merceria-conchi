@@ -1,5 +1,5 @@
 // Edge Function: redsys-notification
-// v32: Soporte para activaciones automáticas de academia y emails de bienvenida
+// v33: Soporte para activaciones automáticas de Club y emails de bienvenida
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 import nodemailer from "npm:nodemailer@6.9.9";
@@ -39,7 +39,7 @@ async function sendEmail(to: string, subject: string, html: string, supabase: an
   }
 }
 
-// ─── Plantilla de Bienvenida a la Academia ───
+// ─── Plantilla de Bienvenida al Club ───
 function buildAcademyWelcomeEmail(email: string): string {
   return "<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'></head>" +
     "<body style='margin:0;padding:0;background-color:#faf8f5;font-family:Helvetica,Arial,sans-serif;'>" +
@@ -51,10 +51,10 @@ function buildAcademyWelcomeEmail(email: string): string {
     "<p style='margin:10px 0 0;color:rgba(255,255,255,0.9);font-size:16px;'>Tu suscripción ya está activa</p>" +
     "</td></tr>" +
     "<tr><td style='padding:32px;text-align:center;'>" +
-    "<p style='font-size:18px;color:#1e293b;line-height:1.6;'>Estamos encantados de tenerte con nosotros en la academia.</p>" +
+    "<p style='font-size:18px;color:#1e293b;line-height:1.6;'>Estamos encantados de tenerte con nosotros en el Club.</p>" +
     "<p style='font-size:16px;color:#64748b;line-height:1.6;'>Ya tienes acceso ilimitado a todos los cursos, directos y materiales exclusivos del Club.</p>" +
     "<div style='margin-top:30px;'>" +
-    "<a href='https://merakiartesano.es/academia' style='background-color:#80cbc4;color:white;padding:16px 32px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;'>Entrar a la Academia</a>" +
+    "<a href='https://merakiartesano.es/academia' style='background-color:#80cbc4;color:white;padding:16px 32px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;'>Entrar al Club</a>" +
     "</div>" +
     "</td></tr>" +
     "<tr><td style='background-color:#f8fafc;padding:30px 32px;text-align:center;border-top:1px solid #f1f5f9;'>" +
@@ -182,13 +182,22 @@ Deno.serve(async (req: Request) => {
 
     if (!isSuccess) return new Response("OK", { status: 200 });
 
-    // ─── CASO A: SUSCRIPCIÓN ACADEMIA ───
+    // ─── CASO A: SUSCRIPCIÓN CLUB ───
     if (merchantData.type === "academy_subscription" && merchantData.userId) {
       // Cálculo unificado al día 20 del mes siguiente
       const expirationDate = new Date();
       expirationDate.setMonth(expirationDate.getMonth() + 1);
       expirationDate.setDate(20);
       expirationDate.setHours(23, 59, 59, 999); // Final del día
+
+      // Verificar si ya estaba activa con este mismo pedido para no duplicar email
+      const { data: existingSub } = await supabaseAdmin
+        .from("subscriptions")
+        .select("status, redsys_order_id")
+        .eq("user_id", merchantData.userId)
+        .single();
+
+      const alreadyProcessed = existingSub?.status === "active" && existingSub?.redsys_order_id === redsysOrderId;
 
       // Upsert suscripción
       await supabaseAdmin.from("subscriptions").upsert({
@@ -201,7 +210,7 @@ Deno.serve(async (req: Request) => {
         last_payment_status: "success"
       }, { onConflict: "user_id" });
 
-      if (merchantData.email) {
+      if (merchantData.email && !alreadyProcessed) {
         await sendEmail(merchantData.email, "¡Bienvenida al Club Meraki ArteSano! 🎨", buildAcademyWelcomeEmail(merchantData.email), supabaseAdmin);
       }
     } 
@@ -210,8 +219,11 @@ Deno.serve(async (req: Request) => {
       const { data: orders } = await supabaseAdmin.from("orders").select("*, order_items(id, name, price, quantity)").eq("redsys_order_id", redsysOrderId);
       if (orders && orders.length > 0) {
         const order = orders[0];
+        const alreadyPaid = order.status === "Pagado";
+
         await supabaseAdmin.from("orders").update({ status: "Pagado", redsys_response_code: String(responseCode) }).eq("id", order.id);
-        if (order.customer_email) {
+        
+        if (order.customer_email && !alreadyPaid) {
           await sendEmail(order.customer_email, "✅ Tu pedido #" + String(order.id).substring(0, 8).toUpperCase() + " en Meraki ArteSano", buildOrderConfirmationEmail(order), supabaseAdmin, order.id);
         }
       }
