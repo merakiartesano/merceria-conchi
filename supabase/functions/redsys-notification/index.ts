@@ -212,6 +212,14 @@ Deno.serve(async (req: Request) => {
 
       if (merchantData.email && !alreadyProcessed) {
         await sendEmail(merchantData.email, "¡Bienvenida al Club Meraki ArteSano! 🎨", buildAcademyWelcomeEmail(merchantData.email), supabaseAdmin);
+        
+        // Alerta para la tienda
+        await sendEmail(
+          "hola@merakiartesano.es", 
+          "🎉 Nueva Alta: Club Meraki ArteSano", 
+          `Un nuevo alumno se ha suscrito al club.<br>Email: <b>${merchantData.email}</b><br>ID Suscripción: ${redsysOrderId}`, 
+          supabaseAdmin
+        );
       }
     } 
     // ─── CASO B: PEDIDO TIENDA ───
@@ -225,6 +233,14 @@ Deno.serve(async (req: Request) => {
         
         if (order.customer_email && !alreadyPaid) {
           await sendEmail(order.customer_email, "✅ Tu pedido #" + String(order.id).substring(0, 8).toUpperCase() + " en Meraki ArteSano", buildOrderConfirmationEmail(order), supabaseAdmin, order.id);
+          
+          // Alerta para la tienda
+          await sendEmail(
+            "hola@merakiartesano.es", 
+            "🛒 Nuevo Pedido #" + String(order.id).substring(0, 8).toUpperCase(), 
+            `¡Tienes un nuevo pedido pagado!<br>Email Cliente: <b>${order.customer_email}</b><br>Total: €${Number(order.total_amount).toFixed(2)}<br><br>Entra al Panel de Admisnistrador para ver los detalles.`, 
+            supabaseAdmin
+          );
         }
       }
     }
