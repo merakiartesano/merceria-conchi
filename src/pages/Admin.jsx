@@ -30,6 +30,7 @@ const Admin = () => {
     const [ordersLoading, setOrdersLoading] = useState(true);
     const [orderFilter, setOrderFilter] = useState('Pagado');
     const [searchQuery, setSearchQuery] = useState('');
+    const [subscriberSearchQuery, setSubscriberSearchQuery] = useState('');
     const [subscribers, setSubscribers] = useState([]);
     const [subscribersLoading, setSubscribersLoading] = useState(true);
     const [videos, setVideos] = useState([]);
@@ -1392,6 +1393,26 @@ const Admin = () => {
                             </div>
                         )}
 
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '10px' }}>
+                            <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por correo, nombre o teléfono..."
+                                    value={subscriberSearchQuery}
+                                    onChange={(e) => setSubscriberSearchQuery(e.target.value)}
+                                    style={{
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '8px',
+                                        padding: '10px 14px 10px 40px',
+                                        fontSize: '0.95rem',
+                                        width: '100%',
+                                        outline: 'none'
+                                    }}
+                                />
+                                <Search size={18} style={{ position: 'absolute', top: '50%', left: '14px', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                            </div>
+                        </div>
+
                         <div className="admin-card">
                             <div className="table-responsive">
                                 <table className="data-table">
@@ -1420,7 +1441,14 @@ const Admin = () => {
                                                 <p style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>Cuando alguien se registre aparecerá aquí.</p>
                                             </td></tr>
                                         ) : (
-                                            subscribers.map((user) => {
+                                            subscribers.filter(user => {
+                                                if (!subscriberSearchQuery) return true;
+                                                const q = subscriberSearchQuery.toLowerCase();
+                                                const name = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+                                                const email = (user.email || '').toLowerCase();
+                                                const phone = (user.phone || '').toLowerCase();
+                                                return name.includes(q) || email.includes(q) || phone.includes(q);
+                                            }).map((user) => {
                                                 const sub = user.subscriptions?.[0] ?? null;
                                                 const isActive = sub?.status === 'active';
                                                 return (
