@@ -2022,7 +2022,9 @@ const Admin = () => {
                             )}
 
                             <p style={{ margin: '0 0 25px 0', fontSize: '0.85rem', color: '#64748b', fontStyle: 'italic' }}>
-                                Una vez confirmes aquí, el socio/a dejará de tener acceso a los contenidos del club inmediatamente.
+                            {subToCancel.identifier 
+                                ? 'Recuerda: la alumna NO perderá acceso inmediatamente, sino cuando termine su periodo mensual pagado tal como hemos avisado en la caja azul.' 
+                                : 'Una vez confirmes aquí, el socio/a dejará de tener acceso al club.'}
                             </p>
 
 

@@ -93,6 +93,17 @@ function generateRedsysSignatureREST(secretKey: string, merchantParametersB64: s
   return forge.util.encode64(hmac.digest().getBytes());
 }
 
+/** Standard Base64 usando loop (compatible con Redsys) */
+function encodeBase64Standard(str: string): string {
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 // ─── Main Logic ───────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
@@ -171,8 +182,9 @@ Deno.serve(async (req) => {
         DS_MERCHANT_EXCEP_SCA: "MIT" // CLAVE: Merchant Initiated Transaction (obligatorio para cobros automáticos REST)
       };
 
-      const paramsB64 = btoa(JSON.stringify(params));
-      const signature = generateRedsysSignatureREST(secretKey, paramsB64, orderId);
+        const paramsJson = JSON.stringify(params);
+        const paramsB64 = encodeBase64Standard(paramsJson);
+        const signature = generateRedsysSignatureREST(secretKey, paramsB64, orderId);
 
       try {
         const response = await fetch(endpoint, {
@@ -187,9 +199,19 @@ Deno.serve(async (req) => {
 
         const resData = await response.json();
         
+        if (resData.errorCode) {
+          throw new Error(`Redsys error code: ${resData.errorCode}`);
+        }
+
         // Decodificar respuesta de Redsys
         const resParamsB64 = resData.Ds_MerchantParameters;
-        const resParams = JSON.parse(atob(resParamsB64.replace(/-/g, "+").replace(/_/g, "/")));
+        if (!resParamsB64) {
+          throw new Error(`No Ds_MerchantParameters in response: ${JSON.stringify(resData)}`);
+        }
+
+        let b64 = resParamsB64.replace(/-/g, "+").replace(/_/g, "/");
+        while (b64.length % 4) b64 += "=";
+        const resParams = JSON.parse(atob(b64));
         const responseCode = parseInt(resParams.Ds_Response || "9999", 10);
         const isSuccess = responseCode >= 0 && responseCode <= 99;
 
@@ -251,7 +273,7 @@ Deno.serve(async (req) => {
         }
       } catch (err) {
         console.error(`Error procesando sub ${sub.id}:`, err);
-        results.push(`❌ ${sub.user_id}: Error`);
+        results.push(`❌ ${sub.user_id}: Error procesando - ${err?.message || String(err)}`);
       }
     }
 
