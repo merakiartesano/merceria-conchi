@@ -375,7 +375,7 @@ const Clases = () => {
                                                 fontWeight: '800', 
                                                 textTransform: 'uppercase', 
                                                 letterSpacing: '1px', 
-                                                marginBottom: '-10px', 
+                                                marginBottom: '0px', 
                                                 zIndex: 1, 
                                                 boxShadow: '0 2px 4px rgba(220, 38, 38, 0.15)',
                                                 border: '1px solid #fca5a5'
