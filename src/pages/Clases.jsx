@@ -360,20 +360,39 @@ const Clases = () => {
                                 <div style={{ padding: 'clamp(2rem, 5vw, 3.5rem) clamp(1rem, 4vw, 2.5rem)', textAlign: 'center' }}>
                                     <h3 style={{ fontSize: '1.6rem', margin: '0 0 15px', color: 'var(--color-heading)' }}>{t('clases.card.title')}</h3>
                                     
-                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '20px' }}>
-                                        <div style={{ color: '#94a3b8', fontSize: '1.4rem', textDecoration: 'line-through', fontWeight: '700', marginBottom: '-10px' }}>
-                                            45 €/mes
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '20px', position: 'relative' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                            <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Precio habitual</span>
+                                            <span style={{ color: '#94a3b8', fontSize: '1.3rem', textDecoration: 'line-through', fontWeight: '700' }}>45 €/mes</span>
                                         </div>
-                                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px', color: 'var(--color-accent)' }}>
-                                            <span style={{ fontSize: '4.5rem', fontWeight: '800', lineHeight: 1 }}>
-                                                {settings?.subscription_price ? 
-                                                    (Number(settings.subscription_price) % 1 === 0 ? 
-                                                        Math.floor(settings.subscription_price) : 
-                                                        settings.subscription_price.toString().replace('.', ',')) 
-                                                    : t('clases.card.price')
-                                                }
-                                            </span>
-                                            <span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{t('clases.card.currency')}</span>
+                                        <div style={{ position: 'relative', display: 'inline-flex', flexDirection: 'column', alignItems: 'center' }}>
+                                            <div style={{ 
+                                                backgroundColor: '#fee2e2', 
+                                                color: '#dc2626', 
+                                                padding: '4px 14px', 
+                                                borderRadius: '20px', 
+                                                fontSize: '0.8rem', 
+                                                fontWeight: '800', 
+                                                textTransform: 'uppercase', 
+                                                letterSpacing: '1px', 
+                                                marginBottom: '-10px', 
+                                                zIndex: 1, 
+                                                boxShadow: '0 2px 4px rgba(220, 38, 38, 0.15)',
+                                                border: '1px solid #fca5a5'
+                                            }}>
+                                                ¡Ahora!
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px', color: 'var(--color-accent)' }}>
+                                                <span style={{ fontSize: '4.5rem', fontWeight: '800', lineHeight: 1 }}>
+                                                    {settings?.subscription_price ? 
+                                                        (Number(settings.subscription_price) % 1 === 0 ? 
+                                                            Math.floor(settings.subscription_price) : 
+                                                            settings.subscription_price.toString().replace('.', ',')) 
+                                                        : t('clases.card.price')
+                                                    }
+                                                </span>
+                                                <span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{t('clases.card.currency')}</span>
+                                            </div>
                                         </div>
                                     </div>
                                     
