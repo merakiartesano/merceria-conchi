@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Users, Settings, LogOut, Plus, Edit2, Trash2, Lock, X, Upload, Save, Loader, ShoppingBag, Truck, Search, Copy, Check, AlertTriangle, FileText, CheckCircle, XCircle } from 'lucide-react';
-import { getProducts, createProduct, deleteProduct, updateProduct, uploadImage, getOrders, updateOrderStatus, getAcademySettings, updateAcademySettings, getSubscribers, cancelSubscription, getAcademyVideos, createAcademyVideo, updateAcademyVideo, deleteAcademyVideo, getShippingZones, updateShippingZone, triggerClassReminder, getCategories, createCategory, deleteCategory } from '../lib/productService';
+import { Package, Users, Settings, LogOut, Plus, Edit2, Trash2, Lock, X, Upload, Save, Loader, ShoppingBag, Truck, Search, Copy, Check, AlertTriangle, FileText, CheckCircle, XCircle, Menu, ChevronDown, ChevronRight } from 'lucide-react';
+import { getProducts, createProduct, deleteProduct, updateProduct, uploadImage, getOrders, updateOrderStatus, getAcademySettings, updateAcademySettings, getSubscribers, cancelSubscription, getAcademyVideos, createAcademyVideo, updateAcademyVideo, deleteAcademyVideo, getShippingZones, updateShippingZone, triggerClassReminder, getCategories, createCategory, deleteCategory, updateSubscriberProfile, deleteSubscriber } from '../lib/productService';
 import { supabase } from '../lib/supabase';
 
 const Admin = () => {
@@ -31,6 +31,22 @@ const Admin = () => {
     const [orderFilter, setOrderFilter] = useState('Pagado');
     const [searchQuery, setSearchQuery] = useState('');
     const [subscriberSearchQuery, setSubscriberSearchQuery] = useState('');
+    const [subscriberFilter, setSubscriberFilter] = useState('all');
+    const [expandedRow, setExpandedRow] = useState(null);
+    const toggleExpandRow = (id) => setExpandedRow(prev => prev === id ? null : id);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    
+    // Subscriber Modals
+    const [editingSubscriber, setEditingSubscriber] = useState(null);
+    const [editSubForm, setEditSubForm] = useState({});
+    const [editSubSaving, setEditSubSaving] = useState(false);
+    const [editSubError, setEditSubError] = useState('');
+    
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [deleteConfirmLoading, setDeleteConfirmLoading] = useState(false);
+    const [deleteConfirmError, setDeleteConfirmError] = useState('');
+
     const [subscribers, setSubscribers] = useState([]);
     const [subscribersLoading, setSubscribersLoading] = useState(true);
     const [videos, setVideos] = useState([]);
@@ -87,9 +103,11 @@ const Admin = () => {
         title: '',
         description: '',
         video_url: '',
-        order_index: 0
+        order_index: 0,
+        thumbnail_url: ''
     });
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [uploadingVideoThumbnail, setUploadingVideoThumbnail] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         category: 'Lanas e Hilos',
@@ -256,6 +274,66 @@ const Admin = () => {
         }
     };
 
+    const handleOpenEditSubscriber = (user) => {
+        const sd = user.subscriptions?.[0]?.shipping_details || {};
+        setEditingSubscriber(user);
+        setEditSubForm({
+            first_name: user.first_name || '',
+            last_name: user.last_name || '',
+            phone: user.phone || '',
+            address: sd.line1 || '',
+            zip: sd.postal_code || '',
+            city: sd.city || '',
+            state: sd.state || '',
+            country: sd.country || 'ES',
+            pickup_pref: sd.pickup_pref || false
+        });
+        setEditSubError('');
+    };
+
+    const handleSaveEditSubscriber = async (e) => {
+        e.preventDefault();
+        setEditSubSaving(true);
+        setEditSubError('');
+        try {
+            await updateSubscriberProfile(editingSubscriber.id, editSubForm);
+            alert("Perfil del alumno actualizado correctamente.");
+            setEditingSubscriber(null);
+            fetchSubscribersData();
+        } catch (error) {
+            console.error("Error updating subscriber:", error);
+            setEditSubError(error.message || "No se pudo actualizar el alumno.");
+        } finally {
+            setEditSubSaving(false);
+        }
+    };
+
+    const handleOpenDeleteConfirm = (user) => {
+        setDeleteConfirm(user);
+        setDeleteConfirmText('');
+        setDeleteConfirmError('');
+    };
+
+    const handleForceDeleteSubscriber = async () => {
+        if (deleteConfirmText.toLowerCase() !== 'eliminar') {
+            setDeleteConfirmError('Debes escribir "eliminar" para confirmar.');
+            return;
+        }
+        setDeleteConfirmLoading(true);
+        setDeleteConfirmError('');
+        try {
+            await deleteSubscriber(deleteConfirm.id);
+            alert("Alumno eliminado definitivamente del sistema.");
+            setDeleteConfirm(null);
+            fetchSubscribersData();
+        } catch (error) {
+            console.error("Error deleting subscriber:", error);
+            setDeleteConfirmError(error.message || "Error al intentar eliminar el alumno.");
+        } finally {
+            setDeleteConfirmLoading(false);
+        }
+    };
+
     const handleCancelClick = (userId, firstName, redsysId, redsysIdentifier) => {
         setSubToCancel({ 
             id: userId, 
@@ -382,7 +460,7 @@ const Admin = () => {
                     academyOrders.push({
                         id: 'alta-' + sub.redsys_order_id,
                         created_at: user.created_at || new Date().toISOString(),
-                        total_amount: 50, // Importe fijo del alta del club
+                        total_amount: academySettings.subscriptionPrice || 50, // Importe configurado del alta del club
                         is_academy_renewal: false, 
                         is_academy_alta: true, // Flag específico para renderizar
                         redsys_order_id: sub.redsys_order_id,
@@ -400,6 +478,263 @@ const Admin = () => {
         } finally {
             setLoadingHistory(false);
         }
+    };
+
+    const handleGeneratePDFCompleto = () => {
+        const printWindow = window.open('', '_blank');
+        const now = new Date();
+
+        // --- Lógica de día de corte ---
+        // Si hoy es posterior al día 20, el mes de envío actual es el mes SIGUIENTE.
+        // Las alumnas que pagaron después del día 20 tienen su kit asignado al mes
+        // posterior a ese siguiente, por lo que NO deben aparecer en este PDF.
+        const CUTOFF_DAY = 20;
+        const shippingMonth = new Date();
+        if (now.getDate() > CUTOFF_DAY) {
+            shippingMonth.setMonth(shippingMonth.getMonth() + 1);
+        }
+        // Mes de envío: solo incluir alumnas cuyo kit es <= shippingMonth
+        const isKitForThisShipping = (u) => {
+            const sub = u.subscriptions?.[0];
+            const end = sub?.current_period_end;
+            if (!end) return true; // sin fecha → incluir (caso antiguo)
+            const kitDate = new Date(typeof end === 'number' ? end * 1000 : end);
+            // Comparamos solo año y mes
+            const kitYear = kitDate.getUTCFullYear();
+            const kitMon = kitDate.getUTCMonth();
+            const shipYear = shippingMonth.getFullYear();
+            const shipMon = shippingMonth.getMonth();
+            // Incluir si period_end <= mes actual (casos legacy/canceladas vigentes)
+            const isPastOrCurrent = (kitYear < shipYear) || (kitYear === shipYear && kitMon <= shipMon);
+            // Incluir si period_end = mes siguiente al de envío
+            // (caso normal: cron cobra el día 5 y pone period_end al día 5 del mes siguiente)
+            const nextMon = (shipMon + 1) % 12;
+            const nextYear = shipMon === 11 ? shipYear + 1 : shipYear;
+            const isNextMonth = kitYear === nextYear && kitMon === nextMon;
+            return isPastOrCurrent || isNextMonth;
+        };
+
+        const isCancelledValid = (u) => {
+            const sub = u.subscriptions?.[0];
+            if (sub?.status !== 'cancelled') return false;
+            const end = sub.current_period_end;
+            if (!end) return false;
+            const endDate = new Date(typeof end === 'number' ? end * 1000 : end);
+            return endDate > now;
+        };
+        const activeSubscribers = subscribers.filter(u => u.subscriptions?.[0]?.status === 'active' && isKitForThisShipping(u));
+        const cancelledValidSubscribers = subscribers.filter(u => isCancelledValid(u) && isKitForThisShipping(u));
+        const kitSubscribers = [...activeSubscribers, ...cancelledValidSubscribers];
+        const pickupCount = kitSubscribers.filter(u => u.subscriptions?.[0]?.shipping_details?.pickup_pref === true).length;
+        const dateStr = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+        const rows = kitSubscribers.map((u, i) => {
+            const sd = u.subscriptions?.[0]?.shipping_details || {};
+            const isPickup = sd.pickup_pref === true;
+            const isCancelled = u.subscriptions?.[0]?.status === 'cancelled';
+            const rowBg = isCancelled ? '#fffbeb' : 'transparent';
+            const addressCell = isPickup
+                ? `<td colspan="4" style="text-align:center;"><span style="background:#dbeafe;color:#1d4ed8;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;">📦 Recoge en tienda</span></td>`
+                : `<td>${sd.line1 || ''}</td><td>${sd.postal_code || ''}</td><td>${sd.city || ''}</td><td>${sd.state || ''}</td>`;
+            const nameLabel = isCancelled
+                ? `${u.first_name || ''} ${u.last_name || ''} <span style="background:#f59e0b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;margin-left:6px;">Último envío</span>`
+                : `${u.first_name || ''} ${u.last_name || ''}`;
+            return `<tr style="background:${rowBg}">
+                <td style="color:#9ca3af;text-align:center;">${i + 1}</td>
+                <td style="font-weight:600;">${nameLabel}</td>
+                <td>${u.phone || '-'}</td>
+                <td>${u.email || ''}</td>
+                ${addressCell}
+                <td>${sd.country || (isPickup ? '' : 'España')}</td>
+            </tr>`;
+        }).join('');
+
+        const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Hoja de Envíos del Club</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            *{box-sizing:border-box;margin:0;padding:0}
+            body{font-family:'Inter',sans-serif;padding:32px;color:#1f2937;font-size:13px;background:#fff}
+            .top-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+            .logo-block .logo-name{font-size:22px;font-weight:700;color:#1f2937;letter-spacing:-0.5px}
+            .logo-block .logo-name span{color:#c9793b}
+            .logo-block .logo-url{font-size:11px;color:#9ca3af;margin-top:2px}
+            .right-block{text-align:right}
+            .right-block .doc-title{font-size:20px;font-weight:700;color:#1f2937}
+            .right-block .doc-date{font-size:12px;color:#6b7280;margin-top:4px}
+            .accent-line{height:3px;background:linear-gradient(90deg,#f59e0b,#f97316);border-radius:2px;margin:12px 0 20px}
+            .stats{display:flex;gap:12px;margin-bottom:20px}
+            .stat-badge{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid}
+            .stat-green{background:#f0fdf4;border-color:#86efac;color:#166534}
+            .stat-amber{background:#fffbeb;border-color:#fcd34d;color:#92400e}
+            table{width:100%;border-collapse:collapse;margin-top:4px}
+            thead tr{background:#1f2937;color:#fff}
+            th{padding:9px 10px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+            td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+            tr:hover td{background:#f9fafb}
+            .footer{margin-top:24px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:12px}
+            @page{size:A4 landscape;margin:12mm 14mm}
+            @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{padding:0}thead tr{background:#1f2937!important;color:#fff!important}.stat-green{background:#f0fdf4!important}.stat-amber{background:#fffbeb!important}.stat-blue{background:#eff6ff!important}.accent-line{background:linear-gradient(90deg,#f59e0b,#f97316)!important}}
+        </style></head><body>
+        <div class="top-header">
+            <div class="logo-block">
+                <div class="logo-name">Meraki <span>ArteSano</span></div>
+                <div class="logo-url">merakiartesano.es</div>
+            </div>
+            <div class="right-block">
+                <div class="doc-title">Hoja de Envíos del Club</div>
+                <div class="doc-date">${dateStr}</div>
+            </div>
+        </div>
+        <div class="accent-line"></div>
+        <div class="stats">
+            <div class="stat-badge stat-green">✅ ${activeSubscribers.length} suscripciones activas</div>
+            ${cancelledValidSubscribers.length > 0 ? `<div class="stat-badge stat-amber">⚠️ ${cancelledValidSubscribers.length} último envío (canceladas vigentes)</div>` : ''}
+            ${pickupCount > 0 ? `<div class="stat-badge stat-amber">📦 ${pickupCount} recogen en tienda</div>` : ''}
+        </div>
+        <table>
+            <thead><tr>
+                <th style="width:32px">#</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+                <th>Dirección</th>
+                <th>Cód. Postal</th>
+                <th>Ciudad</th>
+                <th>Provincia</th>
+                <th>País</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="footer">Generado el ${dateStr} — Meraki ArteSano • merakiartesano.es</div>
+        <script>window.onload=function(){window.print();setTimeout(function(){window.close()},600)}</script>
+        </body></html>`;
+        printWindow.document.write(content);
+        printWindow.document.close();
+    };
+
+    const handleGeneratePDFAgencia = () => {
+        const printWindow = window.open('', '_blank');
+        const now2 = new Date();
+
+        // --- Lógica de día de corte (misma que PDF completo) ---
+        const CUTOFF_DAY2 = 20;
+        const shippingMonth2 = new Date();
+        if (now2.getDate() > CUTOFF_DAY2) {
+            shippingMonth2.setMonth(shippingMonth2.getMonth() + 1);
+        }
+        const isKitForThisShipping2 = (u) => {
+            const sub = u.subscriptions?.[0];
+            const end = sub?.current_period_end;
+            if (!end) return true;
+            const kitDate = new Date(typeof end === 'number' ? end * 1000 : end);
+            const kitYear = kitDate.getUTCFullYear();
+            const kitMon = kitDate.getUTCMonth();
+            const shipYear = shippingMonth2.getFullYear();
+            const shipMon = shippingMonth2.getMonth();
+            // Incluir si period_end <= mes actual (casos legacy/canceladas vigentes)
+            const isPastOrCurrent = (kitYear < shipYear) || (kitYear === shipYear && kitMon <= shipMon);
+            // Incluir si period_end = mes siguiente al de envío
+            // (caso normal: cron cobra el día 5 y pone period_end al día 5 del mes siguiente)
+            const nextMon2 = (shipMon + 1) % 12;
+            const nextYear2 = shipMon === 11 ? shipYear + 1 : shipYear;
+            const isNextMonth2 = kitYear === nextYear2 && kitMon === nextMon2;
+            return isPastOrCurrent || isNextMonth2;
+        };
+
+        const isCancelledValid2 = (u) => {
+            const sub = u.subscriptions?.[0];
+            if (sub?.status !== 'cancelled') return false;
+            const end = sub.current_period_end;
+            if (!end) return false;
+            const endDate = new Date(typeof end === 'number' ? end * 1000 : end);
+            return endDate > now2;
+        };
+        const activeSubscribers = subscribers.filter(u => u.subscriptions?.[0]?.status === 'active' && isKitForThisShipping2(u));
+        const cancelledValid2 = subscribers.filter(u => isCancelledValid2(u) && isKitForThisShipping2(u));
+        const kitAll = [...activeSubscribers, ...cancelledValid2];
+        const homeSubscribers = kitAll.filter(u => u.subscriptions?.[0]?.shipping_details?.pickup_pref !== true);
+        const pickupCount = kitAll.length - homeSubscribers.length;
+        const lastShipCount = cancelledValid2.filter(u => u.subscriptions?.[0]?.shipping_details?.pickup_pref !== true).length;
+        const dateStr = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+        const rows = homeSubscribers.map((u, i) => {
+            const sd = u.subscriptions?.[0]?.shipping_details || {};
+            const isCancelled = u.subscriptions?.[0]?.status === 'cancelled';
+            const rowBg = isCancelled ? '#fffbeb' : 'transparent';
+            const nameLabel = isCancelled
+                ? `${u.first_name || ''} ${u.last_name || ''} <span style="background:#f59e0b;color:#fff;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;margin-left:6px;">Último envío</span>`
+                : `${u.first_name || ''} ${u.last_name || ''}`;
+            return `<tr style="background:${rowBg}">
+                <td style="color:#9ca3af;text-align:center;">${i + 1}</td>
+                <td style="font-weight:600;">${nameLabel}</td>
+                <td>${u.phone || '-'}</td>
+                <td>${u.email || ''}</td>
+                <td>${sd.line1 || ''}</td>
+                <td>${sd.postal_code || ''}</td>
+                <td>${sd.city || ''}</td>
+                <td>${sd.state || ''}</td>
+                <td>${sd.country || 'España'}</td>
+            </tr>`;
+        }).join('');
+        const content = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Hoja de Envíos — Agencia de Transporte</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+            *{box-sizing:border-box;margin:0;padding:0}
+            body{font-family:'Inter',sans-serif;padding:32px;color:#1f2937;font-size:13px;background:#fff}
+            .top-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px}
+            .logo-block .logo-name{font-size:22px;font-weight:700;color:#1f2937;letter-spacing:-0.5px}
+            .logo-block .logo-name span{color:#c9793b}
+            .logo-block .logo-url{font-size:11px;color:#9ca3af;margin-top:2px}
+            .right-block{text-align:right}
+            .right-block .doc-title{font-size:20px;font-weight:700;color:#1f2937}
+            .right-block .doc-date{font-size:12px;color:#6b7280;margin-top:4px}
+            .accent-line{height:3px;background:linear-gradient(90deg,#f59e0b,#f97316);border-radius:2px;margin:12px 0 20px}
+            .stats{display:flex;gap:12px;margin-bottom:20px}
+            .stat-badge{display:flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid}
+            .stat-green{background:#f0fdf4;border-color:#86efac;color:#166534}
+            .stat-blue{background:#eff6ff;border-color:#93c5fd;color:#1e40af}
+            table{width:100%;border-collapse:collapse;margin-top:4px}
+            thead tr{background:#1f2937;color:#fff}
+            th{padding:9px 10px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+            td{padding:9px 10px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+            tr:hover td{background:#f9fafb}
+            .footer{margin-top:24px;text-align:center;font-size:11px;color:#9ca3af;border-top:1px solid #f3f4f6;padding-top:12px}
+            @page{size:A4 landscape;margin:12mm 14mm}
+            @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{padding:0}thead tr{background:#1f2937!important;color:#fff!important}.stat-green{background:#f0fdf4!important}.stat-blue{background:#eff6ff!important}.accent-line{background:linear-gradient(90deg,#f59e0b,#f97316)!important}}
+        </style></head><body>
+        <div class="top-header">
+            <div class="logo-block">
+                <div class="logo-name">Meraki <span>ArteSano</span></div>
+                <div class="logo-url">merakiartesano.es</div>
+            </div>
+            <div class="right-block">
+                <div class="doc-title">Hoja de Envíos — Agencia de Transporte</div>
+                <div class="doc-date">${dateStr}</div>
+            </div>
+        </div>
+        <div class="accent-line"></div>
+        <div class="stats">
+            <div class="stat-badge stat-green">✅ ${activeSubscribers.length} suscripciones activas</div>
+            ${lastShipCount > 0 ? `<div class="stat-badge stat-amber">⚠️ ${lastShipCount} último envío (canceladas vigentes)</div>` : ''}
+            ${pickupCount > 0 ? `<div class="stat-badge stat-blue">ℹ️ ${pickupCount} recogen en tienda (no incluidas)</div>` : ''}
+        </div>
+        <table>
+            <thead><tr>
+                <th style="width:32px">#</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+                <th>Dirección</th>
+                <th>Cód. Postal</th>
+                <th>Ciudad</th>
+                <th>Provincia</th>
+                <th>País</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+        <div class="footer">Generado el ${dateStr} — Meraki ArteSano • merakiartesano.es</div>
+        <script>window.onload=function(){window.print();setTimeout(function(){window.close()},600)}</script>
+        </body></html>`;
+        printWindow.document.write(content);
+        printWindow.document.close();
     };
 
     const fetchShippingZonesData = async () => {
@@ -630,7 +965,8 @@ const Admin = () => {
                 title: video.title,
                 description: video.description || '',
                 video_url: video.video_url,
-                order_index: video.order_index || 0
+                order_index: video.order_index || 0,
+                thumbnail_url: video.thumbnail_url || ''
             });
         } else {
             setEditingVideo(null);
@@ -638,7 +974,8 @@ const Admin = () => {
                 title: '',
                 description: '',
                 video_url: '',
-                order_index: videos.length
+                order_index: videos.length,
+                thumbnail_url: ''
             });
         }
         setIsVideoModalOpen(true);
@@ -662,6 +999,21 @@ const Admin = () => {
         } catch (error) {
             console.error("Error saving video:", error);
             alert("No se pudo guardar el vídeo.");
+        }
+    };
+
+    const handleVideoThumbnailUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setUploadingVideoThumbnail(true);
+        try {
+            const publicUrl = await uploadImage(file);
+            setVideoFormData(prev => ({ ...prev, thumbnail_url: publicUrl }));
+        } catch (error) {
+            console.error('Error al subir la portada del vídeo:', error);
+            alert('Hubo un error al subir la imagen de portada.');
+        } finally {
+            setUploadingVideoThumbnail(false);
         }
     };
 
@@ -843,30 +1195,35 @@ const Admin = () => {
     // --- PANTALLA PRINCIPAL (DASHBOARD) ---
     return (
         <div className="admin-layout">
-            <aside className="admin-sidebar">
+            {/* Overlay oscuro para móvil */}
+            {sidebarOpen && (
+                <div className="admin-overlay" onClick={() => setSidebarOpen(false)} />
+            )}
+
+            <aside className={`admin-sidebar${sidebarOpen ? ' open' : ''}`}>
                 <div className="admin-brand">
                     <h2>Panel Privado</h2>
                     <p>Meraki ArteSano</p>
                 </div>
 
                 <nav className="admin-nav">
-                    <button className={`admin-nav-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>
+                    <button className={`admin-nav-item ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setActiveTab('inventory'); setSidebarOpen(false); }}>
                         <Package size={20} />
                         <span>Inventario</span>
                     </button>
-                    <button className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => setActiveTab('orders')}>
+                    <button className={`admin-nav-item ${activeTab === 'orders' ? 'active' : ''}`} onClick={() => { setActiveTab('orders'); setSidebarOpen(false); }}>
                         <ShoppingBag size={20} />
                         <span>Pedidos</span>
                     </button>
-                    <button className={`admin-nav-item ${activeTab === 'academy' ? 'active' : ''}`} onClick={() => setActiveTab('academy')}>
+                    <button className={`admin-nav-item ${activeTab === 'academy' ? 'active' : ''}`} onClick={() => { setActiveTab('academy'); setSidebarOpen(false); }}>
                         <Settings size={20} />
                         <span>Ajustes del Club</span>
                     </button>
-                    <button className={`admin-nav-item ${activeTab === 'subscribers' ? 'active' : ''}`} onClick={() => setActiveTab('subscribers')}>
+                    <button className={`admin-nav-item ${activeTab === 'subscribers' ? 'active' : ''}`} onClick={() => { setActiveTab('subscribers'); setSidebarOpen(false); }}>
                         <Users size={20} />
                         <span>Socios/as del Club</span>
                     </button>
-                    <button className={`admin-nav-item ${activeTab === 'shipping' ? 'active' : ''}`} onClick={() => setActiveTab('shipping')}>
+                    <button className={`admin-nav-item ${activeTab === 'shipping' ? 'active' : ''}`} onClick={() => { setActiveTab('shipping'); setSidebarOpen(false); }}>
                         <Truck size={20} />
                         <span>Envíos</span>
                     </button>
@@ -881,6 +1238,17 @@ const Admin = () => {
             </aside>
 
             <main className="admin-main">
+                {/* Barra superior móvil con botón hamburguesa */}
+                <div className="admin-mobile-bar">
+                    <button
+                        onClick={() => setSidebarOpen(true)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px' }}
+                        aria-label="Abrir menú"
+                    >
+                        <Menu size={26} color="#111827" />
+                    </button>
+                    <span style={{ fontWeight: 600, fontSize: '1rem', color: '#111827' }}>Panel Admin</span>
+                </div>
                 {activeTab === 'inventory' && (
                     <>
                         <header className="admin-header">
@@ -1393,8 +1761,8 @@ const Admin = () => {
                             </div>
                         )}
 
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '10px' }}>
-                            <div style={{ position: 'relative', flex: 1, maxWidth: '400px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '10px', flexWrap: 'wrap' }}>
+                            <div style={{ position: 'relative', flex: 1, minWidth: '250px', maxWidth: '400px' }}>
                                 <input
                                     type="text"
                                     placeholder="Buscar por correo, nombre o teléfono..."
@@ -1411,37 +1779,63 @@ const Admin = () => {
                                 />
                                 <Search size={18} style={{ position: 'absolute', top: '50%', left: '14px', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                             </div>
+                            <select
+                                value={subscriberFilter}
+                                onChange={(e) => setSubscriberFilter(e.target.value)}
+                                style={{
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '8px',
+                                    padding: '10px 14px',
+                                    fontSize: '0.95rem',
+                                    outline: 'none',
+                                    cursor: 'pointer',
+                                    backgroundColor: '#fff',
+                                    color: '#374151'
+                                }}
+                            >
+                                <option value="all">Todos los estados</option>
+                                <option value="active">Solo Activas</option>
+                                <option value="inactive">Sin Suscripción</option>
+                            </select>
+                            <button onClick={handleGeneratePDFCompleto} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: '500', cursor: 'pointer' }}>
+                                📄 PDF Completo
+                            </button>
+                            <button onClick={handleGeneratePDFAgencia} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#fff', color: '#475569', fontWeight: '500', cursor: 'pointer' }}>
+                                📦 PDF Agencia
+                            </button>
                         </div>
 
-                        <div className="admin-card">
+                        <div className="admin-card admin-desktop-only">
                             <div className="table-responsive">
                                 <table className="data-table">
                                     <thead>
                                         <tr>
+                                            <th style={{ width: '40px' }}></th>
                                             <th>Socio/a</th>
                                             <th>Correo</th>
                                             <th>Teléfono</th>
                                             <th>Estado</th>
-                                            <th>Fin Periodo</th>
-                                            <th>Referencia</th>
-                                            <th>Último Pago</th>
-                                            <th>Historial</th>
-                                            <th>Envío</th>
+                                            <th style={{ textAlign: 'right' }}>Acciones</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {subscribersLoading ? (
-                                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '3rem' }}>
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem' }}>
                                                 <Loader className="animate-spin" size={28} style={{ display: 'inline-block', color: 'var(--color-primary)' }} />
                                             </td></tr>
                                         ) : subscribers.length === 0 ? (
-                                            <tr><td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                            <tr><td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                                 <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🧵</div>
                                                 <p style={{ margin: 0 }}>Todavía no hay socios/as registrados.</p>
                                                 <p style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>Cuando alguien se registre aparecerá aquí.</p>
                                             </td></tr>
                                         ) : (
                                             subscribers.filter(user => {
+                                                const sub = user.subscriptions?.[0] ?? null;
+                                                const isActive = sub?.status === 'active';
+                                                if (subscriberFilter === 'active' && !isActive) return false;
+                                                if (subscriberFilter === 'inactive' && isActive) return false;
+                                                
                                                 if (!subscriberSearchQuery) return true;
                                                 const q = subscriberSearchQuery.toLowerCase();
                                                 const name = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
@@ -1451,170 +1845,302 @@ const Admin = () => {
                                             }).map((user) => {
                                                 const sub = user.subscriptions?.[0] ?? null;
                                                 const isActive = sub?.status === 'active';
+                                                const isExpanded = expandedRow === user.id;
+
                                                 return (
-                                                    <tr key={user.id}>
-                                                        <td><div className="font-medium">{user.first_name || '-'} {user.last_name || ''}</div></td>
-                                                        <td><a href={`mailto:${user.email}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>{user.email || '-'}</a></td>
-                                                        <td style={{ color: '#64748b' }}>{user.phone || '—'}</td>
-                                                        <td>
-                                                            {(() => {
-                                                                const status = sub?.status;
-                                                                let label = 'Sin suscripción';
-                                                                let bgColor = '#f1f5f9';
-                                                                let textColor = '#64748b';
+                                                    <React.Fragment key={user.id}>
+                                                        <tr onClick={() => toggleExpandRow(user.id)} style={{ cursor: 'pointer', backgroundColor: isExpanded ? '#f8fafc' : 'transparent', transition: 'background-color 0.2s' }}>
+                                                            <td style={{ color: '#94a3b8', paddingLeft: '15px' }}>
+                                                                {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                                            </td>
+                                                            <td><div className="font-medium" style={{ whiteSpace: 'nowrap' }}>{user.first_name || '-'} {user.last_name || ''}</div></td>
+                                                            <td><a href={`mailto:${user.email}`} onClick={e => e.stopPropagation()} style={{ color: 'var(--color-primary)', textDecoration: 'none', maxWidth: '200px', display: 'inline-block', textOverflow: 'ellipsis', overflow: 'hidden' }}>{user.email || '-'}</a></td>
+                                                            <td style={{ color: '#64748b' }}>{user.phone || '—'}</td>
+                                                            <td>
+                                                                {(() => {
+                                                                    const status = sub?.status;
+                                                                    let label = 'Sin suscripción';
+                                                                    let bgColor = '#f1f5f9';
+                                                                    let textColor = '#64748b';
 
-                                                                const isExpired = sub?.current_period_end && new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end) < new Date();
-                                                                if (status === 'active') {
-                                                                    label = '✅ Activa';
-                                                                    bgColor = '#d1fae5';
-                                                                    textColor = '#065f46';
-                                                                } else if (status === 'cancelled' && !isExpired) {
-                                                                    label = '🕒 Baja (Acceso)';
-                                                                    bgColor = '#fef9c3';
-                                                                    textColor = '#854d0e';
-                                                                } else if (status === 'cancelled' && isExpired) {
-                                                                    label = '⚪ Cancelada';
-                                                                    bgColor = '#f8fafc';
-                                                                    textColor = '#475569';
-                                                                } else if (status === 'past_due') {
-                                                                    label = '⚠️ Falta de pago';
-                                                                    bgColor = '#fee2e2';
-                                                                    textColor = '#991b1b';
-                                                                }
+                                                                    const periodEnd = sub?.current_period_end;
+                                                                    const periodEndDate = periodEnd ? new Date(typeof periodEnd === 'number' ? periodEnd * 1000 : periodEnd) : null;
+                                                                    const isExpired = periodEndDate && periodEndDate < new Date();
+                                                                    const isCancelledValid = status === 'cancelled' && periodEndDate && !isExpired;
 
-                                                                return (
-                                                                    <span style={{
-                                                                        display: 'inline-block', padding: '4px 12px',
-                                                                        borderRadius: '20px', fontSize: '0.8rem', fontWeight: '600',
-                                                                        backgroundColor: bgColor,
-                                                                        color: textColor
-                                                                    }}>
-                                                                        {label}
-                                                                    </span>
-                                                                );
-                                                            })()}
-                                                        </td>
-                                                        <td style={{ color: '#94a3b8', fontSize: '0.9rem', position: 'relative' }}>
-                                                            <span>
-                                                                {sub?.current_period_end 
-                                                                    ? new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleDateString('es-ES') 
-                                                                    : '—'}
-                                                            </span>
-                                                            {isActive && (
-                                                                <button 
-                                                                    onClick={() => handleCancelClick(user.id, user.first_name, sub.redsys_order_id, sub.redsys_identifier)}
-                                                                    style={{ 
-                                                                        display: 'block', 
-                                                                        marginTop: '6px', 
-                                                                        fontSize: '0.75rem', 
-                                                                        color: '#ef4444', 
-                                                                        background: 'none', 
-                                                                        border: '1px solid #fee2e2', 
-                                                                        padding: '2px 8px', 
-                                                                        borderRadius: '12px',
-                                                                        cursor: 'pointer'
-                                                                    }}
-                                                                    title="Quitar acceso al socio/a"
-                                                                >
-                                                                    🗑️ Dar de Baja
-                                                                </button>
-                                                            )}
-                                                        </td>
-                                                        <td style={{ color: '#64748b', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
-                                                            {sub?.redsys_order_id ? (
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                    <span>{sub.redsys_order_id}</span>
-                                                                    <button 
-                                                                        onClick={() => handleCopyID(sub.redsys_order_id)}
-                                                                        className="btn-icon-small"
-                                                                        style={{ padding: '4px' }}
-                                                                        title="Copiar referencia de Redsys"
-                                                                    >
-                                                                        <Copy size={14} />
+                                                                    if (status === 'active') { label = '✅ Activa'; bgColor = '#d1fae5'; textColor = '#065f46'; } 
+                                                                    else if (status === 'cancelled' && !isExpired) { label = '🕒 Baja'; bgColor = '#fef9c3'; textColor = '#854d0e'; } 
+                                                                    else if (status === 'cancelled' && isExpired) { label = '⚪ Cancelada'; bgColor = '#f8fafc'; textColor = '#475569'; } 
+                                                                    else if (status === 'past_due') { label = '⚠️ Falta pago'; bgColor = '#fee2e2'; textColor = '#991b1b'; }
+
+                                                                    return (
+                                                                        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+                                                                            <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', backgroundColor: bgColor, color: textColor }}>
+                                                                                {label}
+                                                                            </span>
+                                                                            {isCancelledValid && (
+                                                                                <span style={{ fontSize: '0.7rem', color: '#92400e', fontWeight: '500', paddingLeft: '4px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                                                                    <span style={{ fontSize: '0.65rem' }}>📦</span>
+                                                                                    hasta {periodEndDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' })}
+                                                                                </span>
+                                                                            )}
+                                                                            {status === 'active' && !sub?.redsys_identifier && (
+                                                                                <span title="No se puede hacer el cobro automático. Conchi debe contactar con esta alumna para que vuelva a introducir su tarjeta." style={{ fontSize: '0.65rem', backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fdba74', borderRadius: '10px', padding: '2px 7px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '3px', cursor: 'help' }}>
+                                                                                    ⚠️ Sin auto-cobro
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
+                                                            </td>
+                                                            <td style={{ textAlign: 'right' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                                                                    <button onClick={() => handleViewHistory(user)} className="btn-icon-small" style={{ padding: '6px', borderRadius: '50%', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }} title="Ver historial">
+                                                                        <FileText size={14} />
+                                                                    </button>
+                                                                    <button onClick={() => handleOpenEditSubscriber(user)} className="btn-icon-small" style={{ padding: '6px', borderRadius: '50%', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }} title="Editar datos">
+                                                                        <Edit2 size={14} />
+                                                                    </button>
+                                                                    <button onClick={() => handleOpenDeleteConfirm(user)} className="btn-icon-small" style={{ padding: '6px', borderRadius: '50%', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }} title="Eliminar alumno">
+                                                                        <Trash2 size={14} />
                                                                     </button>
                                                                 </div>
-                                                            ) : '—'}
-                                                        </td>
-                                                        <td style={{ fontSize: '0.85rem' }}>
-                                                            {sub?.last_payment_date ? (
-                                                                <div>
-                                                                    <div style={{ color: '#475569', fontWeight: '500' }}>
-                                                                        {new Date(sub.last_payment_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                                            </td>
+                                                        </tr>
+                                                        {isExpanded && (
+                                                            <tr style={{ backgroundColor: '#f8fafc' }}>
+                                                                <td colSpan="6" style={{ padding: '0' }}>
+                                                                    <div style={{ padding: '15px 15px 15px 50px', borderTop: '1px dashed #cbd5e1', display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+                                                                        
+                                                                        <div style={{ flex: '1 1 200px' }}>
+                                                                            {(() => {
+                                                                                const isCancelledNotExpired = sub?.status === 'cancelled' && sub?.current_period_end && new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end) > new Date();
+                                                                                const dateLabel = isCancelledNotExpired ? 'Acceso hasta' : 'Próximo Cobro';
+                                                                                const dateColor = isCancelledNotExpired ? '#92400e' : '#0f172a';
+                                                                                const dateBg = isCancelledNotExpired ? '#fffbeb' : 'transparent';
+                                                                                const dateBorder = isCancelledNotExpired ? '1px solid #fcd34d' : 'none';
+                                                                                return (
+                                                                                    <>
+                                                                                        <span style={{ fontSize: '0.75rem', color: isCancelledNotExpired ? '#92400e' : '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>{dateLabel}</span>
+                                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                                                            <span style={{ fontSize: '0.95rem', fontWeight: '600', color: dateColor, background: dateBg, border: dateBorder, borderRadius: '8px', padding: isCancelledNotExpired ? '3px 10px' : '0' }}>
+                                                                                                {sub?.current_period_end ? new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : '—'}
+                                                                                            </span>
+                                                                                            {isCancelledNotExpired && (
+                                                                                                <span style={{ fontSize: '0.65rem', backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', borderRadius: '10px', padding: '2px 7px', fontWeight: '600' }}>
+                                                                                                    📦 Último kit incluido
+                                                                                                </span>
+                                                                                            )}
+                                                                                            {isActive && !sub?.redsys_identifier && (
+                                                                                                <span title="Sin cobro automático" style={{ fontSize: '0.65rem', backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fdba74', borderRadius: '10px', padding: '1px 6px' }}>⚠️ Sin auto-cobro</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        {isActive && (
+                                                                                            <button onClick={() => handleCancelClick(user.id, user.first_name, sub.redsys_order_id, sub.redsys_identifier)} style={{ display: 'inline-block', marginTop: '6px', fontSize: '0.75rem', color: '#ef4444', background: 'none', border: '1px solid #fee2e2', padding: '2px 8px', borderRadius: '12px', cursor: 'pointer' }} title="Quitar acceso">
+                                                                                                🗑️ Dar de Baja
+                                                                                            </button>
+                                                                                        )}
+                                                                                    </>
+                                                                                );
+                                                                            })()}
+                                                                        </div>
+
+
+                                                                        <div style={{ flex: '1 1 150px' }}>
+                                                                            <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Kit del Mes</span>
+                                                                            <span style={{ fontSize: '0.95rem', fontWeight: '600', color: '#0f766e', textTransform: 'capitalize' }}>
+                                                                                {sub?.current_period_end ? new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleString('es-ES', { timeZone: 'UTC', month: 'long' }) : '—'}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <div style={{ flex: '1 1 200px' }}>
+                                                                            <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Ref. Redsys</span>
+                                                                            {sub?.redsys_order_id ? (
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                    <span style={{ fontSize: '0.95rem', fontFamily: 'monospace', color: '#475569' }}>{sub.redsys_order_id}</span>
+                                                                                    <button onClick={() => handleCopyID(sub.redsys_order_id)} className="btn-icon-small" style={{ padding: '4px' }}><Copy size={14} /></button>
+                                                                                </div>
+                                                                            ) : <span style={{ color: '#94a3b8' }}>—</span>}
+                                                                        </div>
+
+                                                                        <div style={{ flex: '1 1 150px' }}>
+                                                                            <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Último Pago</span>
+                                                                            {sub?.last_payment_date ? (
+                                                                                <div>
+                                                                                    <div style={{ fontSize: '0.95rem', color: '#334155' }}>
+                                                                                        {new Date(sub.last_payment_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                                                                    </div>
+                                                                                    {sub.last_payment_status === 'success' ? (
+                                                                                        <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}><Check size={12} /> Éxito</span>
+                                                                                    ) : sub.last_payment_status === 'failed' ? (
+                                                                                        <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}><AlertTriangle size={12} /> Fallido</span>
+                                                                                    ) : null}
+                                                                                </div>
+                                                                            ) : <span style={{ color: '#94a3b8' }}>—</span>}
+                                                                        </div>
+
+                                                                        <div style={{ flex: '1 1 150px' }}>
+                                                                            <span style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600', display: 'block', marginBottom: '4px' }}>Envío</span>
+                                                                            {sub?.shipping_details ? (
+                                                                                <button 
+                                                                                    onClick={() => { setSelectedSubShipping(sub.shipping_details); setIsShippingModalOpen(true); }}
+                                                                                    className="btn-icon-small" 
+                                                                                    style={{ color: sub.shipping_details.pickup_pref ? '#0284c7' : 'var(--color-primary)', backgroundColor: sub.shipping_details.pickup_pref ? '#f0f9ff' : 'var(--color-primary-light)', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '20px', border: `1px solid ${sub.shipping_details.pickup_pref ? '#bae6fd' : 'rgba(235, 137, 31, 0.2)'}`, fontSize: '0.8rem' }}
+                                                                                >
+                                                                                    {sub.shipping_details.pickup_pref ? (<><ShoppingBag size={14} /><span style={{ fontWeight: '600' }}>Recogida</span></>) : (<><Truck size={14} /><span style={{ fontWeight: '600' }}>Domicilio</span></>)}
+                                                                                </button>
+                                                                            ) : (
+                                                                                <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>Sin envío</span>
+                                                                            )}
+                                                                        </div>
+
                                                                     </div>
-                                                                    {sub.last_payment_status === 'success' ? (
-                                                                        <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}>
-                                                                            <Check size={12} /> Éxito
-                                                                        </span>
-                                                                    ) : sub.last_payment_status === 'failed' ? (
-                                                                        <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}>
-                                                                            <AlertTriangle size={12} /> Fallido
-                                                                        </span>
-                                                                    ) : null}
-                                                                </div>
-                                                            ) : '—'}
-                                                        </td>
-                                                        <td>
-                                                            <button 
-                                                                onClick={() => handleViewHistory(user)}
-                                                                className="btn-icon-small"
-                                                                style={{ 
-                                                                    padding: '4px 10px', 
-                                                                    width: 'auto',
-                                                                    fontSize: '0.8rem', 
-                                                                    borderRadius: '20px', 
-                                                                    display: 'flex', 
-                                                                    alignItems: 'center', 
-                                                                    gap: '5px',
-                                                                    backgroundColor: '#f1f5f9',
-                                                                    color: '#475569',
-                                                                    border: '1px solid #e2e8f0'
-                                                                }}
-                                                                title="Ver historial de pagos"
-                                                            >
-                                                                <FileText size={14} /> Pagos
-                                                            </button>
-                                                        </td>
-                                                        <td>
-                                                            {sub?.shipping_details ? (
-                                                                 <button 
-                                                                    onClick={() => { setSelectedSubShipping(sub.shipping_details); setIsShippingModalOpen(true); }}
-                                                                    className="btn-icon-small" 
-                                                                    style={{ 
-                                                                        color: sub.shipping_details.pickup_pref ? '#0284c7' : 'var(--color-primary)', 
-                                                                        backgroundColor: sub.shipping_details.pickup_pref ? '#f0f9ff' : 'var(--color-primary-light)',
-                                                                        width: 'auto',
-                                                                        padding: '4px 12px',
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '6px',
-                                                                        borderRadius: '20px',
-                                                                        border: `1px solid ${sub.shipping_details.pickup_pref ? '#bae6fd' : 'rgba(235, 137, 31, 0.2)'}`
-                                                                    }} 
-                                                                    title="Ver detalles de entrega"
-                                                                >
-                                                                    {sub.shipping_details.pickup_pref ? (
-                                                                        <>
-                                                                            <ShoppingBag size={16} />
-                                                                            <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>Recogida en Tienda</span>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Truck size={16} />
-                                                                            <span style={{ fontSize: '0.75rem', fontWeight: '600' }}>Envío a Domicilio</span>
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                            ) : (
-                                                                <span style={{ color: '#cbd5e1', fontSize: '0.8rem' }}>No disp.</span>
-                                                            )}
-                                                        </td>
-                                                    </tr>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </React.Fragment>
                                                 );
                                             })
                                         )}
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+
+                        {/* --- Vista de tarjetas para móvil --- */}
+                        <div className="admin-mobile-cards">
+                            {subscribersLoading ? (
+                                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                                    <Loader className="animate-spin" size={28} style={{ display: 'inline-block', color: 'var(--color-primary)' }} />
+                                </div>
+                            ) : subscribers.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                    <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🧵</div>
+                                    <p style={{ margin: 0 }}>Todavía no hay socios/as registrados.</p>
+                                </div>
+                            ) : (
+                                subscribers.filter(user => {
+                                    const sub = user.subscriptions?.[0] ?? null;
+                                    const isActive = sub?.status === 'active';
+                                    if (subscriberFilter === 'active' && !isActive) return false;
+                                    if (subscriberFilter === 'inactive' && isActive) return false;
+                                    if (!subscriberSearchQuery) return true;
+                                    const q = subscriberSearchQuery.toLowerCase();
+                                    const name = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
+                                    const email = (user.email || '').toLowerCase();
+                                    const phone = (user.phone || '').toLowerCase();
+                                    return name.includes(q) || email.includes(q) || phone.includes(q);
+                                }).map((user) => {
+                                    const sub = user.subscriptions?.[0] ?? null;
+                                    const isActive = sub?.status === 'active';
+                                    const status = sub?.status;
+                                    const isExpired = sub?.current_period_end && new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end) < new Date();
+                                    let label = 'Sin suscripción';
+                                    let bgColor = '#f1f5f9';
+                                    let textColor = '#64748b';
+                                    if (status === 'active') { label = '✅ Activa'; bgColor = '#d1fae5'; textColor = '#065f46'; }
+                                    else if (status === 'cancelled' && !isExpired) { label = '🕒 Baja (Acceso)'; bgColor = '#fef9c3'; textColor = '#854d0e'; }
+                                    else if (status === 'cancelled' && isExpired) { label = '⚪ Cancelada'; bgColor = '#f8fafc'; textColor = '#475569'; }
+                                    else if (status === 'past_due') { label = '⚠️ Falta de pago'; bgColor = '#fee2e2'; textColor = '#991b1b'; }
+                                    return (
+                                        <div key={user.id} className="socio-card">
+                                            <div className="socio-card-header">
+                                                <div className="socio-card-name">{user.first_name || '-'} {user.last_name || ''}</div>
+                                                <span style={{ display: 'inline-block', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: '600', backgroundColor: bgColor, color: textColor, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                                    {label}
+                                                </span>
+                                            </div>
+                                            <div className="socio-card-body">
+                                                <div className="socio-card-field">
+                                                    <span className="socio-card-label">Correo</span>
+                                                    <a href={`mailto:${user.email}`} style={{ color: 'var(--color-primary)', textDecoration: 'none', wordBreak: 'break-all' }} className="socio-card-value">{user.email || '—'}</a>
+                                                </div>
+                                                <div className="socio-card-field">
+                                                    <span className="socio-card-label">Teléfono</span>
+                                                    <span className="socio-card-value" style={{ color: '#64748b' }}>{user.phone || '—'}</span>
+                                                </div>
+                                                {sub?.current_period_end && (
+                                                    <div className="socio-card-field">
+                                                        <span className="socio-card-label">Próximo Cobro</span>
+                                                        <div className="socio-card-value">
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                                <span style={{ color: '#475569', fontSize: '0.85rem' }}>
+                                                                    {new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleDateString('es-ES', { timeZone: 'UTC' })}
+                                                                </span>
+                                                                {isActive && !sub?.redsys_identifier && (
+                                                                    <span title="Sin cobro automático" style={{ fontSize: '0.65rem', backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #fdba74', borderRadius: '10px', padding: '1px 5px' }}>⚠️ Sin auto-cobro</span>
+                                                                )}
+                                                            </div>
+                                                            {isActive && (
+                                                                <button
+                                                                    onClick={() => handleCancelClick(user.id, user.first_name, sub.redsys_order_id, sub.redsys_identifier)}
+                                                                    style={{ display: 'block', marginTop: '4px', fontSize: '0.72rem', color: '#ef4444', background: 'none', border: '1px solid #fee2e2', padding: '2px 8px', borderRadius: '12px', cursor: 'pointer' }}
+                                                                >🗑️ Dar de Baja</button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {sub?.current_period_end && (
+                                                    <div className="socio-card-field">
+                                                        <span className="socio-card-label">Kit del mes</span>
+                                                        <span className="socio-card-value" style={{ fontWeight: '600', color: '#0f766e', textTransform: 'capitalize' }}>
+                                                            {new Date(typeof sub.current_period_end === 'number' ? sub.current_period_end * 1000 : sub.current_period_end).toLocaleString('es-ES', { timeZone: 'UTC', month: 'long' })}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {sub?.redsys_order_id && (
+                                                    <div className="socio-card-field">
+                                                        <span className="socio-card-label">Ref. Redsys</span>
+                                                        <div className="socio-card-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <span style={{ fontFamily: 'monospace', color: '#475569' }}>{sub.redsys_order_id}</span>
+                                                            <button onClick={() => handleCopyID(sub.redsys_order_id)} className="btn-icon-small" style={{ padding: '2px' }}><Copy size={12} /></button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {sub?.last_payment_date && (
+                                                    <div className="socio-card-field">
+                                                        <span className="socio-card-label">Último Pago</span>
+                                                        <div className="socio-card-value">
+                                                            {new Date(sub.last_payment_date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                                            {sub.last_payment_status === 'success' ? (
+                                                                <span style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}><Check size={12} /> Éxito</span>
+                                                            ) : sub.last_payment_status === 'failed' ? (
+                                                                <span style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', marginTop: '2px' }}><AlertTriangle size={12} /> Fallido</span>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="socio-card-field" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                                                    <span className="socio-card-label">Acciones</span>
+                                                    <div className="socio-card-value" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                        <button onClick={() => handleViewHistory(user)} className="btn-icon-small" style={{ padding: '4px 10px', borderRadius: '20px', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', fontSize: '0.8rem', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                            <FileText size={14} /> Pagos
+                                                        </button>
+                                                        <button onClick={() => handleOpenEditSubscriber(user)} className="btn-icon-small" style={{ padding: '4px 10px', borderRadius: '20px', backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: '0.8rem', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                            <Edit2 size={14} /> Editar
+                                                        </button>
+                                                        <button onClick={() => handleOpenDeleteConfirm(user)} className="btn-icon-small" style={{ padding: '4px 10px', borderRadius: '20px', backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', fontSize: '0.8rem', display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                            <Trash2 size={14} /> Borrar
+                                                        </button>
+                                                        
+                                                        {sub?.shipping_details ? (
+                                                            <button 
+                                                                onClick={() => { setSelectedSubShipping(sub.shipping_details); setIsShippingModalOpen(true); }}
+                                                                className="btn-icon-small" 
+                                                                style={{ color: sub.shipping_details.pickup_pref ? '#0284c7' : 'var(--color-primary)', backgroundColor: sub.shipping_details.pickup_pref ? '#f0f9ff' : 'var(--color-primary-light)', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '6px', borderRadius: '20px', border: `1px solid ${sub.shipping_details.pickup_pref ? '#bae6fd' : 'rgba(235, 137, 31, 0.2)'}`, fontSize: '0.8rem' }}
+                                                            >
+                                                                {sub.shipping_details.pickup_pref ? (<><ShoppingBag size={14} /> Recogida</>) : (<><Truck size={14} /> Domicilio</>)}
+                                                            </button>
+                                                        ) : (
+                                                            <span style={{ color: '#cbd5e1', fontSize: '0.8rem', display: 'flex', alignItems: 'center', padding: '4px 10px' }}>Sin envío</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
                     </>
                 )}
@@ -1851,6 +2377,59 @@ const Admin = () => {
                                         placeholder="0"
                                     />
                                 </div>
+                            </div>
+
+                            {/* --- Portada personalizada --- */}
+                            <div className="input-group" style={{ marginTop: '1rem' }}>
+                                <label>Imagen de Portada (opcional)</label>
+                                <p style={{ fontSize: '0.8rem', color: '#6b7280', margin: '0 0 8px 0' }}>
+                                    Si no subes ninguna, se usará la miniatura automática de YouTube.
+                                </p>
+
+                                {/* Preview de la portada actual */}
+                                {videoFormData.thumbnail_url && (
+                                    <div style={{ position: 'relative', marginBottom: '10px', width: '100%', maxWidth: '280px' }}>
+                                        <img
+                                            src={videoFormData.thumbnail_url}
+                                            alt="Portada"
+                                            style={{ width: '100%', borderRadius: '8px', objectFit: 'cover', aspectRatio: '16/9', display: 'block' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setVideoFormData(prev => ({ ...prev, thumbnail_url: '' }))}
+                                            style={{
+                                                position: 'absolute', top: '6px', right: '6px',
+                                                background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%',
+                                                width: '24px', height: '24px', display: 'flex', alignItems: 'center',
+                                                justifyContent: 'center', cursor: 'pointer', color: '#fff', fontSize: '14px'
+                                            }}
+                                            title="Quitar portada"
+                                        >✕</button>
+                                    </div>
+                                )}
+
+                                <label
+                                    htmlFor="video-thumbnail-upload"
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '8px',
+                                        padding: '8px 16px', borderRadius: '8px', border: '1px dashed #d1d5db',
+                                        cursor: uploadingVideoThumbnail ? 'not-allowed' : 'pointer',
+                                        backgroundColor: '#f9fafb', color: '#4b5563', fontSize: '0.9rem',
+                                        opacity: uploadingVideoThumbnail ? 0.6 : 1, transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {uploadingVideoThumbnail
+                                        ? <><Loader size={16} className="animate-spin" /> Subiendo...</>
+                                        : <><Upload size={16} /> {videoFormData.thumbnail_url ? 'Cambiar imagen' : 'Subir imagen de portada'}</>}
+                                </label>
+                                <input
+                                    id="video-thumbnail-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleVideoThumbnailUpload}
+                                    style={{ display: 'none' }}
+                                    disabled={uploadingVideoThumbnail}
+                                />
                             </div>
 
                             <div className="input-group" style={{ marginTop: '1rem' }}>
@@ -2204,6 +2783,122 @@ const Admin = () => {
                             >
                                 Entendido
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL EDITAR PERFIL SOCIO --- */}
+            {editingSubscriber && (
+                <div className="admin-modal-overlay">
+                    <div className="admin-modal">
+                        <div className="modal-header">
+                            <h3>Editar Datos del Alumno</h3>
+                            <button onClick={() => setEditingSubscriber(null)} className="btn-icon-small"><X size={20} /></button>
+                        </div>
+                        <form onSubmit={handleSaveEditSubscriber} className="modal-body">
+                            {editSubError && <div style={{ color: '#dc2626', backgroundColor: '#fee2e2', padding: '10px', borderRadius: '8px', marginBottom: '15px' }}>{editSubError}</div>}
+                            
+                            <div className="form-row">
+                                <div className="input-group">
+                                    <label>Nombre</label>
+                                    <input type="text" value={editSubForm.first_name} onChange={e => setEditSubForm({...editSubForm, first_name: e.target.value})} required />
+                                </div>
+                                <div className="input-group">
+                                    <label>Apellidos</label>
+                                    <input type="text" value={editSubForm.last_name} onChange={e => setEditSubForm({...editSubForm, last_name: e.target.value})} />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="input-group">
+                                    <label>Teléfono</label>
+                                    <input type="tel" value={editSubForm.phone} onChange={e => setEditSubForm({...editSubForm, phone: e.target.value})} />
+                                </div>
+                            </div>
+                            <h4 style={{ margin: '20px 0 10px 0', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px' }}>Dirección de Envío</h4>
+                            <div className="input-group">
+                                <label>Dirección (Calle, número, piso...)</label>
+                                <input type="text" value={editSubForm.address} onChange={e => setEditSubForm({...editSubForm, address: e.target.value})} />
+                            </div>
+                            <div className="form-row">
+                                <div className="input-group">
+                                    <label>Código Postal</label>
+                                    <input type="text" value={editSubForm.zip} onChange={e => setEditSubForm({...editSubForm, zip: e.target.value})} />
+                                </div>
+                                <div className="input-group">
+                                    <label>Ciudad</label>
+                                    <input type="text" value={editSubForm.city} onChange={e => setEditSubForm({...editSubForm, city: e.target.value})} />
+                                </div>
+                            </div>
+                            <div className="form-row">
+                                <div className="input-group">
+                                    <label>Provincia</label>
+                                    <input type="text" value={editSubForm.state} onChange={e => setEditSubForm({...editSubForm, state: e.target.value})} />
+                                </div>
+                                <div className="input-group">
+                                    <label>País</label>
+                                    <input type="text" value={editSubForm.country} onChange={e => setEditSubForm({...editSubForm, country: e.target.value})} />
+                                </div>
+                            </div>
+                            <div className="input-group" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '15px' }}>
+                                <input 
+                                    type="checkbox" 
+                                    id="editPickupPref"
+                                    checked={editSubForm.pickup_pref} 
+                                    onChange={e => setEditSubForm({...editSubForm, pickup_pref: e.target.checked})} 
+                                    style={{ width: 'auto' }}
+                                />
+                                <label htmlFor="editPickupPref" style={{ margin: 0, cursor: 'pointer' }}>Recogida en tienda (Ignorar dirección)</label>
+                            </div>
+                            <div className="modal-footer" style={{ marginTop: '25px' }}>
+                                <button type="button" onClick={() => setEditingSubscriber(null)} className="btn btn-secondary">Cancelar</button>
+                                <button type="submit" className="btn btn-primary" disabled={editSubSaving}>
+                                    {editSubSaving ? 'Guardando...' : 'Guardar Cambios'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* --- MODAL CONFIRMAR ELIMINACIÓN USUARIO --- */}
+            {deleteConfirm && (
+                <div className="admin-modal-overlay">
+                    <div className="admin-modal" style={{ maxWidth: '400px' }}>
+                        <div className="modal-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                            <h3 style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px' }}><Trash2 size={24} /> Eliminar Alumno</h3>
+                            <button onClick={() => setDeleteConfirm(null)} className="btn-icon-small"><X size={20} /></button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ margin: '0 0 15px 0', color: '#475569' }}>
+                                Estás a punto de eliminar <strong>definitivamente</strong> a:
+                                <br/><span style={{ color: '#0f172a', fontWeight: 'bold' }}>{deleteConfirm.first_name} {deleteConfirm.last_name} ({deleteConfirm.email})</span>
+                            </p>
+                            <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', padding: '12px', borderRadius: '8px', marginBottom: '15px' }}>
+                                <p style={{ margin: 0, fontSize: '0.85rem', color: '#991b1b' }}>
+                                    <strong>¡Atención!</strong> Esto borrará su perfil, pero <strong style={{ textDecoration: 'underline' }}>no</strong> cancela los cobros en Redsys.
+                                </p>
+                            </div>
+                            <p style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Escribe <strong>eliminar</strong> para confirmar:</p>
+                            <input 
+                                type="text" 
+                                value={deleteConfirmText}
+                                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                placeholder="eliminar"
+                                style={{ width: '100%', padding: '10px', border: '1px solid #cbd5e1', borderRadius: '8px' }}
+                            />
+                            {deleteConfirmError && <p style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '8px' }}>{deleteConfirmError}</p>}
+                            <div className="modal-footer" style={{ marginTop: '20px', display: 'flex', gap: '10px', borderTop: 'none', paddingTop: 0 }}>
+                                <button onClick={() => setDeleteConfirm(null)} className="btn btn-secondary" style={{ flex: 1 }}>Cancelar</button>
+                                <button 
+                                    onClick={handleForceDeleteSubscriber} 
+                                    className="btn btn-primary" 
+                                    style={{ flex: 1, backgroundColor: '#dc2626' }}
+                                    disabled={deleteConfirmLoading || deleteConfirmText.toLowerCase() !== 'eliminar'}
+                                >
+                                    {deleteConfirmLoading ? 'Eliminando...' : 'Eliminar'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
