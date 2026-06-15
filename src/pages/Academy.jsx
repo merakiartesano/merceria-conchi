@@ -11,6 +11,8 @@ const Academy = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [activeTab, setActiveTab] = useState('content'); // 'content' or 'profile'
+    const [playingVideo, setPlayingVideo] = useState(null); // ID del vídeo activo en reproducción
+    const [hoveredVideo, setHoveredVideo] = useState(null); // ID del vídeo con hover
     const [freshSubscription, setFreshSubscription] = useState(hasActiveSubscription);
     const [settings, setSettings] = useState(null);
     const [videos, setVideos] = useState([]);
@@ -198,7 +200,7 @@ const Academy = () => {
                 body: { 
                     userId: user.id, 
                     email: user.email, 
-                    amount: settings?.subscription_price || 32 
+                    amount: settings?.subscription_price || 39 
                 }
             });
 
@@ -408,35 +410,112 @@ const Academy = () => {
                                 </div>
 
                                 {/* Video Library Section (Only shown if there are videos) */}
-                                {videos.length > 0 && (
-                                    <div style={{ marginBottom: '40px' }}>
-                                        <h2 style={{ fontSize: '1.5rem', marginBottom: '20px', color: '#2d3748' }}>{t('academy.library')}</h2>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' }}>
-                                            {videos.map(video => (
-                                                <div key={video.id} style={{ backgroundColor: '#fff', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
-                                                    <div style={{ width: '100%', paddingTop: '56.25%', backgroundColor: '#edf2f7', position: 'relative' }}>
-                                                        {video.video_url.includes('youtube') || video.video_url.includes('vimeo') ? (
-                                                            <iframe
-                                                                src={video.video_url}
-                                                                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                                                                allowFullScreen
-                                                                title={video.title}
-                                                            />
-                                                        ) : (
-                                                            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                <a href={video.video_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">{t('academy.watchVideo')}</a>
+                                {videos.length > 0 && (() => {
+                                    // Extrae el ID de YouTube de cualquier formato de URL
+                                    const getYoutubeId = (url) => {
+                                        if (!url) return null;
+                                        const embedMatch = url.match(/youtube\.com\/embed\/([^?&]+)/);
+                                        if (embedMatch) return embedMatch[1];
+                                        const watchMatch = url.match(/[?&]v=([^&]+)/);
+                                        if (watchMatch) return watchMatch[1];
+                                        const shortMatch = url.match(/youtu\.be\/([^?&]+)/);
+                                        if (shortMatch) return shortMatch[1];
+                                        return null;
+                                    };
+
+                                    // Convierte cualquier URL de YouTube a formato embed
+                                    const toEmbedUrl = (url) => {
+                                        const id = getYoutubeId(url);
+                                        if (id) return `https://www.youtube.com/embed/${id}?autoplay=1`;
+                                        return url;
+                                    };
+
+                                    return (
+                                        <div style={{ marginBottom: '40px' }}>
+                                            <h2 style={{ fontSize: '1.5rem', marginBottom: '20px', color: '#2d3748' }}>{t('academy.library')}</h2>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' }}>
+                                                {videos.map(video => {
+                                                    const ytId = getYoutubeId(video.video_url);
+                                                    const thumbUrl = video.thumbnail_url
+                                                        ? video.thumbnail_url  // 1ª prioridad: portada subida por Conchi
+                                                        : ytId
+                                                            ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`  // 2ª: miniatura YouTube
+                                                            : null;  // 3ª: botón de enlace
+                                                    const isPlaying = playingVideo === video.id;
+
+                                                    return (
+                                                        <div key={video.id} style={{ backgroundColor: '#fff', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                                                            <div style={{ width: '100%', paddingTop: '56.25%', backgroundColor: '#1a1a2e', position: 'relative' }}>
+                                                                {isPlaying ? (
+                                                                    /* Player embebido activo */
+                                                                    <iframe
+                                                                        src={toEmbedUrl(video.video_url)}
+                                                                        style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                                                                        allowFullScreen
+                                                                        allow="autoplay; encrypted-media"
+                                                                        title={video.title}
+                                                                    />
+                                                                ) : thumbUrl ? (
+                                                                    /* Miniatura con overlay + play que aparece en hover */
+                                                                    <div
+                                                                        onClick={() => setPlayingVideo(video.id)}
+                                                                        onMouseEnter={() => setHoveredVideo(video.id)}
+                                                                        onMouseLeave={() => setHoveredVideo(null)}
+                                                                        style={{
+                                                                            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                                                            backgroundImage: `url(${thumbUrl})`,
+                                                                            backgroundSize: 'cover',
+                                                                            backgroundPosition: 'center',
+                                                                            cursor: 'pointer',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                        }}
+                                                                    >
+                                                                        {/* Overlay oscuro — solo visible en hover */}
+                                                                        <div style={{
+                                                                            position: 'absolute', inset: 0,
+                                                                            background: 'rgba(0,0,0,0.35)',
+                                                                            opacity: hoveredVideo === video.id ? 1 : 0,
+                                                                            transition: 'opacity 0.25s ease'
+                                                                        }} />
+                                                                        {/* Botón play — pequeño, esquina inferior izquierda, solo en hover */}
+                                                                        <div style={{
+                                                                            position: 'absolute',
+                                                                            bottom: '12px',
+                                                                            left: '12px',
+                                                                            width: '38px', height: '38px',
+                                                                            borderRadius: '50%',
+                                                                            backgroundColor: 'var(--color-primary)',
+                                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                                            boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+                                                                            opacity: hoveredVideo === video.id ? 1 : 0,
+                                                                            transform: hoveredVideo === video.id ? 'scale(1)' : 'scale(0.8)',
+                                                                            transition: 'opacity 0.25s ease, transform 0.25s ease',
+                                                                        }}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                                                                                <polygon points="5,3 19,12 5,21" />
+                                                                            </svg>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    /* URL no YouTube: botón de enlace externo */
+                                                                    <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                                        <a href={video.video_url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">{t('academy.watchVideo')}</a>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ padding: '20px' }}>
-                                                        <h3 style={{ fontSize: '1.1rem', marginBottom: '10px', color: '#2d3748' }}>{video.title}</h3>
-                                                        {video.description && <p style={{ color: '#718096', fontSize: '0.9rem' }}>{video.description}</p>}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                            <div style={{ padding: '20px' }}>
+                                                                <h3 style={{ fontSize: '1.1rem', marginBottom: '10px', color: '#2d3748' }}>{video.title}</h3>
+                                                                {video.description && <p style={{ color: '#718096', fontSize: '0.9rem' }}>{video.description}</p>}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
                             </>
                         )}
                     </>

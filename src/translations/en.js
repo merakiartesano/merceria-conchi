@@ -234,10 +234,11 @@ export const en = {
     "clases.pricing.diff.li5": "• Exclusive store benefits and future kits.",
     
     "clases.rules.title": "📌 Subscription Terms",
-    "clases.rules.p1": "The subscription automatically renews on the 20th of each month for the following month's box.",
+    "clases.rules.p1": "The subscription automatically renews on the 5th of each month.",
     "clases.rules.p2": "To receive next month's box, you must subscribe before the 20th. If you sign up after the 20th, your first box will be the one for the month after next.",
     "clases.rules.p3": "This is because from the 21st to the 30th we prepare each kit with great care so that it ships punctually on the 1st.",
     "clases.rules.example": "Example: If you join on May 15th, you receive the June box. If you join on May 25th, you will receive the July box.",
+    "clases.rules.billing": "💳 Payments are processed on the 5th of each month.",
     "clases.rules.cancel": "You can cancel any time from your account. If the monthly charge has already been processed, you will receive that box and the cancellation will be effective for the next month.",
 
     "clases.card.title": "Monthly Subscription",
@@ -280,5 +281,11 @@ export const en = {
     "profile.save": "Save Changes",
     "profile.saving": "Saving...",
     "profile.success": "Profile updated successfully.",
-    "profile.error": "Error updating profile. Please try again."
+    "profile.error": "Error updating profile. Please try again.",
+
+    // Terms
+    "auth.acceptTerms": "I have read and accept the",
+    "auth.termsClose": "I have read the terms — Close",
+    "auth.termsShippingZones": "Available shipping zones (shipping included)",
+    "auth.errorZoneInactive": "Sorry, we don't currently ship to your zone. Available zones:",
 };

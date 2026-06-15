@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import ReactGA from 'react-ga4';
 import Navbar from './components/layout/Navbar';
 import Cart from './components/layout/Cart';
 import Footer from './components/layout/Footer';
@@ -23,9 +24,17 @@ import ResetPassword from './pages/ResetPassword';
 import Academy from './pages/Academy';
 import { AvisoLegal, PoliticaPrivacidad, PoliticaCookies, CondicionesCompra } from './pages/LegalPages';
 
+// Inicializar Google Analytics con tu ID
+ReactGA.initialize("G-DVJPS7S0J2");
+
 const AppContent = () => {
     const location = useLocation();
     const isAdmin = location.pathname.startsWith('/admin');
+
+    // Efecto para rastrear cada cambio de página
+    useEffect(() => {
+        ReactGA.send({ hitType: "pageview", page: location.pathname + location.search });
+    }, [location]);
 
     return (
         <div className={isAdmin ? "admin-root" : "app-container"} style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

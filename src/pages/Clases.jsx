@@ -325,6 +325,7 @@ const Clases = () => {
                                     }}>
                                         {t('clases.rules.example')}
                                     </div>
+                                    <p style={{ margin: '0.5rem 0 0', fontSize: '0.9rem', color: '#7dd3fc', fontWeight: '600' }}>{t('clases.rules.billing')}</p>
                                     <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', opacity: 0.8 }}>{t('clases.rules.cancel')}</p>
                                 </div>
                             </div>

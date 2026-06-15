@@ -33,6 +33,33 @@ const Login = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isRecovery, setIsRecovery] = useState(false);
+    const [termsAccepted, setTermsAccepted] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+    const [subscriptionPrice, setSubscriptionPrice] = useState(null);
+    const [shippingZones, setShippingZones] = useState([]);
+    const [zonesLoaded, setZonesLoaded] = useState(false);
+
+    // Fetch precio y zonas de envío activas para el modal y validación
+    React.useEffect(() => {
+        supabase
+            .from('academy_settings')
+            .select('subscription_price')
+            .eq('id', 1)
+            .maybeSingle()
+            .then(({ data }) => {
+                if (data?.subscription_price) setSubscriptionPrice(data.subscription_price);
+            });
+
+        supabase
+            .from('shipping_zones')
+            .select('name, is_active')
+            .eq('is_active', true)
+            .order('name', { ascending: true })
+            .then(({ data }) => {
+                if (data) setShippingZones(data);
+                setZonesLoaded(true);
+            });
+    }, []);
 
     const navigate = useNavigate();
     const { t } = useLanguage();
@@ -42,6 +69,19 @@ const Login = () => {
     const from = fromLocation
         ? (fromLocation.pathname + (fromLocation.search || ''))
         : '/academia';
+
+    // Determina la zona de envío según el país y el código postal del usuario
+    const getUserZone = (userCountry, userZip) => {
+        if (userCountry === 'Portugal') return 'Portugal';
+        if (userCountry === 'France')   return 'Francia';
+        if (userCountry === 'España') {
+            const prefix = (userZip || '').substring(0, 2);
+            if (prefix === '07') return 'Islas Baleares';
+            if (prefix === '35' || prefix === '38') return 'Islas Canarias';
+            return 'España - Península';
+        }
+        return null;
+    };
 
     const handleRegisterChange = (e) => {
         const { name, value } = e.target;
@@ -123,6 +163,26 @@ const Login = () => {
                     setValidationError(t('auth.errorPhoneSpain'));
                     setLoading(false);
                     return;
+                }
+            }
+
+            // Validar que la zona de envío del usuario esté activa
+            if (zonesLoaded) {
+                const userZone = getUserZone(country, zip);
+                if (userZone) {
+                    const isActive = shippingZones.some(z => z.name === userZone);
+                    if (!isActive) {
+                        const activeNames = shippingZones
+                            .filter(z => z.name !== 'Recogida en Tienda')
+                            .map(z => z.name)
+                            .join(', ');
+                        setValidationError(
+                            t('auth.errorZoneInactive') +
+                            (activeNames ? ` (${activeNames})` : '')
+                        );
+                        setLoading(false);
+                        return;
+                    }
                 }
             }
         }
@@ -406,7 +466,36 @@ const Login = () => {
                         </>
                     )}
 
-                    <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '10px', fontSize: '1.2rem', padding: '16px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(245, 158, 11, 0.3)', fontWeight: '600' }}>
+                    {/* ─── Checkbox condiciones (solo en registro) ─── */}
+                    {!isLogin && !isRecovery && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={termsAccepted}
+                                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                                    style={{ marginTop: '3px', width: '18px', height: '18px', accentColor: 'var(--color-accent)', cursor: 'pointer', flexShrink: 0 }}
+                                />
+                                <span style={{ fontSize: '0.88rem', color: '#4a5568', lineHeight: 1.5 }}>
+                                    {t('auth.acceptTerms')}{' '}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowTermsModal(true)}
+                                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontWeight: '700', fontSize: '0.88rem', textDecoration: 'underline', padding: 0 }}
+                                    >
+                                        {t('clases.rules.title')}
+                                    </button>
+                                </span>
+                            </label>
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={loading || (!isLogin && !isRecovery && !termsAccepted)}
+                        style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '10px', fontSize: '1.2rem', padding: '16px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(245, 158, 11, 0.3)', fontWeight: '600', opacity: (!isLogin && !isRecovery && !termsAccepted) ? 0.5 : 1, transition: 'opacity 0.2s' }}
+                    >
                         {loading ? <Loader2 className="animate-spin" /> : (isRecovery ? t('auth.sendInstructions') : (isLogin ? t('auth.enter') : t('auth.register')))}
                     </button>
                 </form>
@@ -432,6 +521,104 @@ const Login = () => {
                     )}
                 </div>
             </div>
+
+            {/* ─── Modal Condiciones de Suscripción ─── */}
+            {showTermsModal && (
+                <div
+                    onClick={() => setShowTermsModal(false)}
+                    style={{
+                        position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 1000, padding: '20px'
+                    }}
+                >
+                    <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                            backgroundColor: '#0f172a', color: '#cbd5e1',
+                            borderRadius: '24px', padding: '32px',
+                            maxWidth: '540px', width: '100%',
+                            maxHeight: '85vh', overflowY: 'auto',
+                            boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+                            border: '1px dashed rgba(56,189,248,0.3)',
+                            position: 'relative'
+                        }}
+                    >
+                        <h3 style={{ margin: '0 0 1.2rem', color: 'white', fontSize: '1.2rem', fontWeight: '700' }}>
+                            {t('clases.rules.title')}
+                        </h3>
+
+                        {/* Precio destacado */}
+                        {subscriptionPrice && (
+                            <div style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                backgroundColor: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)',
+                                borderRadius: '14px', padding: '14px 20px', marginBottom: '1.2rem'
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: '0.78rem', color: '#fbbf24', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}
+                                    >{t('clases.card.title')}</div>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                                        <span style={{ fontSize: '2rem', fontWeight: '800', color: '#f59e0b', lineHeight: 1 }}>
+                                            {Number(subscriptionPrice) % 1 === 0 ? Math.floor(subscriptionPrice) : subscriptionPrice}
+                                        </span>
+                                        <span style={{ fontSize: '1rem', fontWeight: '700', color: '#fbbf24' }}>€/mes</span>
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>🚚 {t('clases.card.shippingIncluded')}</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>{t('clases.card.noCommitment')}</div>
+                                </div>
+                            </div>
+                        )}
+                        {/* Zonas de envío activas */}
+                        {shippingZones.length > 0 && (
+                            <div style={{ marginBottom: '1.2rem' }}>
+                                <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                                    📦 {t('auth.termsShippingZones')}
+                                </div>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {shippingZones.map(zone => (
+                                        <span key={zone.name} style={{
+                                            padding: '4px 12px',
+                                            borderRadius: '20px',
+                                            backgroundColor: 'rgba(56,189,248,0.12)',
+                                            border: '1px solid rgba(56,189,248,0.3)',
+                                            color: '#7dd3fc',
+                                            fontSize: '0.82rem',
+                                            fontWeight: '500'
+                                        }}>
+                                            ✓ {zone.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', fontSize: '0.93rem', lineHeight: 1.6 }}>
+                            <p style={{ margin: 0 }}>{t('clases.rules.p2')}</p>
+                            <p style={{ margin: 0 }}>{t('clases.rules.p3')}</p>
+                            <div style={{ padding: '12px 16px', backgroundColor: 'rgba(0,0,0,0.25)', borderRadius: '10px', borderLeft: '3px solid #38bdf8', fontStyle: 'italic', fontSize: '0.88rem' }}>
+                                {t('clases.rules.example')}
+                            </div>
+                            <p style={{ margin: 0, color: '#7dd3fc', fontWeight: '600' }}>{t('clases.rules.billing')}</p>
+                            <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.75 }}>{t('clases.rules.cancel')}</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowTermsModal(false)}
+                            style={{
+                                marginTop: '24px', width: '100%',
+                                padding: '12px', borderRadius: '12px',
+                                backgroundColor: 'var(--color-accent)', color: 'white',
+                                border: 'none', fontWeight: '700', fontSize: '1rem', cursor: 'pointer'
+                            }}
+                        >
+                            {t('auth.termsClose')}
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

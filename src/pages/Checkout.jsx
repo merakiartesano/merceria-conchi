@@ -17,7 +17,7 @@ const Checkout = () => {
     const { user } = useAuth();
 
     const isSubscription = location.search.includes('type=subscription') || location.state?.isSubscription;
-    const [subscriptionPrice, setSubscriptionPrice] = useState(location.state?.price || 32);
+    const [subscriptionPrice, setSubscriptionPrice] = useState(location.state?.price || 39);
 
     const [formData, setFormData] = useState({
         name: '',

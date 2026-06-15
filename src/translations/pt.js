@@ -243,10 +243,11 @@ export const pt = {
     "clases.pricing.diff.li5": "• Vantagens super exclusivas na loja.",
     
     "clases.rules.title": "📌 Condições de Assinatura",
-    "clases.rules.p1": "A assinatura renova-se automaticamente no dia 20 de cada mes para a caixa do mês seguinte.",
-    "clases.rules.p2": "Para receber a caixa do próximo mês, deve subscrever-se antes do dia 20. Se se inscrever após o dia 20, a sua promeira caixa será a do mês subsiguiente.",
+    "clases.rules.p1": "A assinatura renova-se automaticamente no dia 5 de cada mês.",
+    "clases.rules.p2": "Para receber a caixa do próximo mês, deve subscrever-se antes do dia 20. Se se inscrever após o dia 20, a sua primeira caixa será a do mês subsiguiente.",
     "clases.rules.p3": "Isto deve-se ao facto de, entre os dias 21 e 30, prepararmos cada kit com muito carinho para que seja enviado pontualmente no dia 1.",
     "clases.rules.example": "Exemplo: Se se juntar a 15 de maio, recebe a caixa de junho. Si se juntar a 25 de maio, receberá a de julho.",
+    "clases.rules.billing": "💳 Os pagamentos são efetuados no dia 5 de cada mês.",
     "clases.rules.cancel": "Pode cancelar quando quiser através da sua conta. Se o débito do mês já tiver sido processado, receberá essa caixa e o cancelamento será efetuado para o mês seguinte.",
 
     "clases.card.title": "Assinatura Mensal",
@@ -295,4 +296,10 @@ export const pt = {
     "profile.save": "Guardar Alterações",
     "profile.saved": "✓ Dados guardados com sucesso",
     "profile.error": "Erro ao guardar os dados. Tente novamente.",
+
+    // Termos
+    "auth.acceptTerms": "Li e aceito as",
+    "auth.termsClose": "Li as condições — Fechar",
+    "auth.termsShippingZones": "Zonas de envio disponíveis (portes incluídos)",
+    "auth.errorZoneInactive": "Lamentamos, de momento não fazemos envios para a sua zona. Zonas disponíveis:",
 };

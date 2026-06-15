@@ -239,10 +239,11 @@ export const es = {
     "clases.pricing.diff.li5": "• Ventajas exclusivas en tienda y próximos kits.",
     
     "clases.rules.title": "📌 Condiciones de Suscripción",
-    "clases.rules.p1": "La suscripción se renueva automáticamente el día 20 de cada mes para la caja del mes siguiente.",
+    "clases.rules.p1": "La suscripción se renueva automáticamente el día 5 de cada mes.",
     "clases.rules.p2": "Para recibir la caja del próximo mes, debes suscribirte antes del día 20. Si te inscribes después del día 20, tu primera caja será la del mes subsiguiente.",
     "clases.rules.p3": "Esto se debe a que del 21 al 30 preparamos cada kit con mucho mimo para que salga puntual el día 1.",
     "clases.rules.example": "Ejemplo: Si te unes el 15 de mayo, recibes la caja de junio. Si te unes el 25 de mayo, recibirás la de julio.",
+    "clases.rules.billing": "💳 Los cobros se efectúan el día 5 de cada mes.",
     "clases.rules.cancel": "Puedes cancelar cuando quieras desde tu cuenta. Si el cobro del mes ya se ha procesado, recibirás esa caja y la baja será efectiva para el mes siguiente.",
 
     "clases.card.title": "Suscripción Mensual",
@@ -285,5 +286,11 @@ export const es = {
     "profile.save": "Guardar Cambios",
     "profile.saving": "Guardando...",
     "profile.success": "Perfil actualizado correctamente.",
-    "profile.error": "Error al actualizar el perfil. Inténtalo de nuevo."
+    "profile.error": "Error al actualizar el perfil. Inténtalo de nuevo.",
+
+    // Términos
+    "auth.acceptTerms": "He leído y acepto las",
+    "auth.termsClose": "He leído las condiciones — Cerrar",
+    "auth.termsShippingZones": "Zonas de envío disponibles (gastos incluidos)",
+    "auth.errorZoneInactive": "Lo sentimos, actualmente no realizamos envíos a tu zona. Zonas disponibles:",
 };

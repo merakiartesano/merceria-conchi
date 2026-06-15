@@ -252,7 +252,8 @@ export const createAcademyVideo = async (video) => {
             title: video.title,
             description: video.description || null,
             video_url: video.video_url,
-            order_index: video.order_index || 0
+            order_index: video.order_index || 0,
+            thumbnail_url: video.thumbnail_url || null
         }])
         .select()
         .single();
@@ -268,7 +269,8 @@ export const updateAcademyVideo = async (id, video) => {
             title: video.title,
             description: video.description || null,
             video_url: video.video_url,
-            order_index: video.order_index
+            order_index: video.order_index,
+            thumbnail_url: video.thumbnail_url || null
         })
         .eq('id', id)
         .select()
@@ -303,35 +305,85 @@ export const getSubscribers = async () => {
     if (!result) return [];
 
     // 2. Mapear el resultado al formato de array 'subscriptions' que usa Admin.jsx
-    return result.map(u => ({
-        id: u.id,
-        email: u.email,
-        first_name: u.first_name,
-        last_name: u.last_name,
-        phone: u.phone,
-        created_at: u.created_at,
-        subscriptions: [
-            {
-                status: u.status || 'inactive',
-                stripe_customer_id: u.stripe_customer_id || null,
-                current_period_end: u.current_period_end || null,
-                redsys_order_id: u.redsys_order_id || null,
-                redsys_identifier: u.redsys_identifier || null,
-                last_payment_date: u.last_payment_date || null,
-                last_payment_status: u.last_payment_status || null,
-                shipping_details: (u.address || u.pickup_pref) ? {
-                    name: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
-                    phone: u.phone || '',
-                    line1: u.address || '',
-                    postal_code: u.zip || '',
-                    city: u.city || '',
-                    state: u.state || '',
-                    country: u.country || '',
-                    pickup_pref: u.pickup_pref || false
-                } : null
-            }
-        ]
-    }));
+    return result.map(u => {
+        // Los datos de dirección pueden venir de dos sitios:
+        // a) Columnas planas de profiles (p.address, p.zip...) → usuarios antiguos
+        // b) shipping_details JSONB de subscriptions → usuarios nuevos
+        // Preferimos las columnas de profiles si existen, si no usamos shipping_details
+        const hasProfileAddress = !!(u.address || u.pickup_pref);
+        const sd = hasProfileAddress ? {
+            name: `${u.first_name || ''} ${u.last_name || ''}`.trim(),
+            phone: u.phone || '',
+            line1: u.address || '',
+            postal_code: u.zip || '',
+            city: u.city || '',
+            state: u.state || '',
+            country: u.country || '',
+            pickup_pref: u.pickup_pref || false
+        } : (u.shipping_details || null);
+
+        return {
+            id: u.id,
+            email: u.email,
+            first_name: u.first_name,
+            last_name: u.last_name,
+            phone: u.phone,
+            created_at: u.created_at,
+            subscriptions: [
+                {
+                    status: u.status || 'inactive',
+                    stripe_customer_id: u.stripe_customer_id || null,
+                    current_period_end: u.current_period_end || null,
+                    redsys_order_id: u.redsys_order_id || null,
+                    redsys_identifier: u.redsys_identifier || null,
+                    last_payment_date: u.last_payment_date || null,
+                    last_payment_status: u.last_payment_status || null,
+                    shipping_details: sd
+                }
+            ]
+        };
+    });
+};
+
+// --- UPDATE SUBSCRIBER PROFILE (admin) ---
+export const updateSubscriberProfile = async (userId, profileData) => {
+    // 1. Actualizar datos de dirección en profiles (columnas planas — fuente principal)
+    const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+            first_name:  profileData.first_name  || null,
+            last_name:   profileData.last_name   || null,
+            phone:       profileData.phone        || null,
+            address:     profileData.address      || null,
+            zip:         profileData.zip          || null,
+            city:        profileData.city         || null,
+            state:       profileData.state        || null,
+            country:     profileData.country      || null,
+            pickup_pref: profileData.pickup_pref  ?? false,
+        })
+        .eq('id', userId);
+
+    if (profileError) throw profileError;
+
+    // 2. También actualizar shipping_details en subscriptions para mantener sincronía
+    const newShippingDetails = {
+        name: `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim(),
+        phone: profileData.phone || '',
+        line1: profileData.address || '',
+        postal_code: profileData.zip || '',
+        city: profileData.city || '',
+        state: profileData.state || '',
+        country: profileData.country || 'ES',
+        pickup_pref: profileData.pickup_pref ?? false,
+    };
+
+    const { error: subError } = await supabase
+        .from('subscriptions')
+        .update({ shipping_details: newShippingDetails })
+        .eq('user_id', userId);
+
+    // No lanzamos error si no hay suscripción (usuarios sin suscripción activa)
+    if (subError) console.warn('No se pudo actualizar shipping_details en subscriptions:', subError.message);
 };
 
 // --- SHIPPING ZONES HELPER FUNCTIONS ---
@@ -403,6 +455,35 @@ export const cancelSubscription = async (userId) => {
         return true;
     } catch (error) {
         console.error("Error canceling subscription:", error);
+        throw error;
+    }
+};
+
+// --- DELETE SUBSCRIBER (admin) — elimina definitivamente al usuario ---
+export const deleteSubscriber = async (targetUserId) => {
+    try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+            throw new Error("No hay una sesión activa de administrador. Por favor, recarga la página.");
+        }
+
+        const { data: result, error: invokeError } = await supabase.functions.invoke('delete-subscriber', {
+            body: { targetUserId },
+            headers: { Authorization: `Bearer ${session.access_token}` }
+        });
+
+        if (invokeError) {
+            console.error("Error en delete-subscriber invoke:", invokeError);
+            throw invokeError;
+        }
+
+        if (result?.error) {
+            throw new Error(result.error);
+        }
+
+        return result;
+    } catch (error) {
+        console.error("Error deleting subscriber:", error);
         throw error;
     }
 };

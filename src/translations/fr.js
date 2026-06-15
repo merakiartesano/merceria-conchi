@@ -234,10 +234,11 @@ export const fr = {
     "clases.pricing.diff.li5": "• Avantages exclusifs en boutique et sur les prochains kits.",
     
     "clases.rules.title": "📌 Conditions d'Abonnement",
-    "clases.rules.p1": "L'abonnement se renouvelle automatiquement le 20 de chaque mois pour la boîte du mois suivant.",
+    "clases.rules.p1": "L'abonnement se renouvelle automatiquement le 5 de chaque mois.",
     "clases.rules.p2": "Pour recevoir la boîte du mois prochain, vous devez vous abonner avant le 20. Si vous vous inscrivez après le 20, votre première boîte sera celle du mois d'après.",
     "clases.rules.p3": "C'est parce que du 21 au 30, nous préparons chaque kit avec grand soin pour qu'il soit expédié ponctuellement le 1er.",
     "clases.rules.example": "Exemple : Si vous rejoignez le 15 mai, vous recevez la boîte de juin. Si vous rejoignez le 25 mai, vous recevrez celle de juillet.",
+    "clases.rules.billing": "💳 Les paiements sont effectués le 5 de chaque mois.",
     "clases.rules.cancel": "Vous pouvez annuler à tout moment depuis votre compte. Si le prélèvement du mois a déjà été traité, vous recevrez cette boîte et l'annulation sera effective pour le mois suivant.",
 
     "clases.card.title": "Abonnement Mensuel",
@@ -280,5 +281,11 @@ export const fr = {
     "profile.save": "Enregistrer les modifications",
     "profile.saving": "Enregistrement...",
     "profile.success": "Profil mis à jour avec succès.",
-    "profile.error": "Erreur lors de la mise à jour du profil. Veuillez réessayer."
+    "profile.error": "Erreur lors de la mise à jour du profil. Veuillez réessayer.",
+
+    // Termes
+    "auth.acceptTerms": "J'ai lu et j'accepte les",
+    "auth.termsClose": "J'ai lu les conditions — Fermer",
+    "auth.termsShippingZones": "Zones de livraison disponibles (frais inclus)",
+    "auth.errorZoneInactive": "Désolés, nous ne livrons pas actuellement dans votre zone. Zones disponibles :",
 };

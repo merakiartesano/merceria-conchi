@@ -1117,7 +1117,7 @@ a {
 }
 
 .admin-sidebar {
-  width: 260px;
+  width: 220px;
   background-color: white;
   border-right: 1px solid #e5e7eb;
   display: flex;
@@ -1195,8 +1195,8 @@ a {
 /* Admin Main */
 .admin-main {
   flex-grow: 1;
-  margin-left: 260px;
-  padding: 40px;
+  margin-left: 220px;
+  padding: 32px 20px;
 }
 
 .admin-header {
@@ -1229,23 +1229,41 @@ a {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  font-size: 0.82rem;
 }
 
 .data-table th {
   background-color: #f9fafb;
-  padding: 16px 24px;
-  font-size: 0.85rem;
+  padding: 10px 10px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
 }
 
 .data-table td {
-  padding: 16px 24px;
+  padding: 10px 10px;
   border-bottom: 1px solid #e5e7eb;
   vertical-align: middle;
+}
+
+/* Columna email: truncar si es muy larga */
+.data-table td.col-email {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Columna nombre: truncar si es muy largo */
+.data-table td.col-name {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .data-table tr:last-child td {
@@ -1326,7 +1344,102 @@ a {
   gap: 8px;
 }
 
-/* --- Admin Login --- */
+/* ── Admin Panel: Responsive móvil ── */
+.admin-mobile-bar {
+  display: none; /* oculto en desktop */
+}
+
+.admin-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  /* Sidebar: oculto por defecto, desliza desde la izquierda */
+  .admin-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+    width: 260px;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* Overlay oscuro al abrir el sidebar */
+  .admin-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 150;
+    animation: fadeIn 0.2s ease;
+  }
+
+  /* Contenido principal sin margen lateral */
+  .admin-main {
+    margin-left: 0;
+    padding: 0 16px 32px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Barra superior móvil con hamburger */
+  .admin-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 4px 14px 0;
+    margin-bottom: 20px;
+    background-color: #f3f4f6;
+  }
+
+  /* Títulos más pequeños en móvil */
+  .admin-title {
+    font-size: 1.4rem;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  /* Barra de búsqueda/filtros/botones: apila en móvil */
+  .admin-toolbar-row {
+    flex-wrap: wrap;
+  }
+
+  /* Tablas: ocultarlas en móvil (ya existe admin-desktop-only) */
+  .admin-desktop-only {
+    display: none !important;
+  }
+
+  /* Tarjetas de stats en 1 columna */
+  .admin-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Botones PDF más compactos */
+  .admin-pdf-btn {
+    font-size: 0.82rem !important;
+    padding: 8px 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-main {
+    padding: 0 12px 32px;
+  }
+
+  .admin-title {
+    font-size: 1.2rem;
+  }
+}
+
+
 .admin-login-wrapper {
   display: flex;
   align-items: center;
@@ -2301,5 +2414,97 @@ a {
 
   .admin-nav-item {
     flex: 1 1 100%;
+  }
+}
+
+/* ============================================
+   ADMIN SOCIOS — RESPONSIVE (MOBILE CARDS)
+   ============================================ */
+.admin-desktop-only { display: block; }
+.admin-mobile-cards  { display: none;  }
+
+@media (max-width: 768px) {
+  .admin-desktop-only { display: none; }
+
+  .admin-mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px 0;
+  }
+
+  .socio-card {
+    background: white;
+    border-radius: 14px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.07);
+    transition: box-shadow 0.2s;
+  }
+
+  .socio-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+  }
+
+  .socio-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .socio-card-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #111827;
+    line-height: 1.3;
+  }
+
+  .socio-card-body {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .socio-card-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.85rem;
+  }
+
+  .socio-card-label {
+    color: #9ca3af;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    min-width: 78px;
+    padding-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .socio-card-value {
+    color: #374151;
+    flex: 1;
+  }
+
+  .socio-card-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid #f3f4f6;
+    background: #fafafa;
+    flex-wrap: wrap;
+  }
+
+  .socio-card-actions button {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
   }
 }
