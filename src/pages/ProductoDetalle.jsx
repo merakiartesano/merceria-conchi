@@ -11,6 +11,7 @@ const ProductoDetalle = () => {
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
+    const [activeImage, setActiveImage] = useState(0);
     const { addToCart } = useCart();
     const { t } = useLanguage();
 
@@ -20,8 +21,8 @@ const ProductoDetalle = () => {
                 const data = await getProductById(id);
                 if (data) {
                     setProduct(data);
+                    setActiveImage(0);
                 } else {
-                    // Si no existe el producto, volvemos a la tienda
                     navigate('/tienda');
                 }
             } catch (error) {
@@ -36,7 +37,7 @@ const ProductoDetalle = () => {
     }, [id, navigate]);
 
     const handleAddToCart = () => {
-        if (product) {
+        if (product && !product.out_of_stock) {
             addToCart(product, quantity);
         }
     };
@@ -51,6 +52,10 @@ const ProductoDetalle = () => {
 
     if (!product) return null;
 
+    // Build the full images array: [image_url, ...images]
+    const extraImages = Array.isArray(product.images) ? product.images.filter(Boolean) : [];
+    const allImages = [product.image_url, ...extraImages].filter(Boolean);
+
     return (
         <div className="product-detail-page section-padding">
             <div className="breadcrumb">
@@ -60,14 +65,46 @@ const ProductoDetalle = () => {
             </div>
 
             <div className="product-detail-container">
-                {/* Visual Section: Image */}
+                {/* Visual Section: Image Gallery */}
                 <div className="product-detail-gallery">
                     <div
                         className="main-image"
-                        style={{ backgroundImage: `url(${product.image_url})` }}
+                        style={{ backgroundImage: `url(${allImages[activeImage] || product.image_url})`, position: 'relative' }}
                     >
-                        {product.is_new && <div className="product-tag tag-new">{t('store.tagNew')}</div>}
+                        {product.out_of_stock && (
+                            <div style={{ position: 'absolute', top: '16px', left: '16px', background: '#ef4444', color: '#fff', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '0.85rem', letterSpacing: '0.5px' }}>
+                                🚫 Agotado
+                            </div>
+                        )}
+                        {!product.out_of_stock && product.is_new && (
+                            <div className="product-tag tag-new">{t('store.tagNew')}</div>
+                        )}
                     </div>
+
+                    {/* Thumbnails — only show if there are multiple images */}
+                    {allImages.length > 1 && (
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
+                            {allImages.map((img, idx) => (
+                                <div
+                                    key={idx}
+                                    onClick={() => setActiveImage(idx)}
+                                    style={{
+                                        width: '70px',
+                                        height: '70px',
+                                        borderRadius: '8px',
+                                        backgroundImage: `url(${img})`,
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        cursor: 'pointer',
+                                        border: activeImage === idx ? '2px solid var(--color-primary)' : '2px solid #e5e7eb',
+                                        opacity: activeImage === idx ? 1 : 0.7,
+                                        transition: 'all 0.2s ease',
+                                        flexShrink: 0
+                                    }}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Details & Actions Section */}
@@ -86,22 +123,29 @@ const ProductoDetalle = () => {
                     </div>
 
                     <div className="product-actions-box">
-                        <div className="quantity-selector-large">
-                            <span className="quantity-label">{t('product.quantity')}</span>
-                            <div className="quantity-controls">
-                                <button onClick={() => setQuantity(Math.max(1, quantity - 1))}><Minus size={18} /></button>
-                                <span>{quantity}</span>
-                                <button onClick={() => setQuantity(quantity + 1)}><Plus size={18} /></button>
+                        {product.out_of_stock ? (
+                            <div style={{ padding: '20px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '12px', textAlign: 'center' }}>
+                                <p style={{ color: '#ef4444', fontWeight: '700', fontSize: '1.1rem', margin: 0 }}>🚫 Producto agotado</p>
+                                <p style={{ color: '#9ca3af', fontSize: '0.9rem', marginTop: '6px', marginBottom: 0 }}>Este producto está temporalmente sin stock</p>
                             </div>
-                        </div>
+                        ) : (
+                            <>
+                                <div className="quantity-selector-large">
+                                    <span className="quantity-label">{t('product.quantity')}</span>
+                                    <div className="quantity-controls">
+                                        <button onClick={() => setQuantity(Math.max(1, quantity - 1))}><Minus size={18} /></button>
+                                        <span>{quantity}</span>
+                                        <button onClick={() => setQuantity(quantity + 1)}><Plus size={18} /></button>
+                                    </div>
+                                </div>
 
-                        <button className="btn btn-primary add-to-cart-large" onClick={handleAddToCart}>
-                            <ShoppingCart size={20} />
-                            {t('product.add')}
-                        </button>
+                                <button className="btn btn-primary add-to-cart-large" onClick={handleAddToCart}>
+                                    <ShoppingCart size={20} />
+                                    {t('product.add')}
+                                </button>
+                            </>
+                        )}
                     </div>
-
-
                 </div>
             </div>
         </div>

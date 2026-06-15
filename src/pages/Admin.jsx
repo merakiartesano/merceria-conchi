@@ -884,12 +884,15 @@ const Admin = () => {
     const handleOpenModal = (product = null) => {
         if (product) {
             setEditingProduct(product);
+            const extraImages = Array.isArray(product.images) ? product.images : [];
             setFormData({
                 name: product.name,
                 category: product.category,
                 price: product.price,
                 image_url: product.image_url || '',
+                images: [extraImages[0] || '', extraImages[1] || ''],
                 is_new: product.is_new || false,
+                out_of_stock: product.out_of_stock || false,
                 description: product.description || ''
             });
         } else {
@@ -899,7 +902,9 @@ const Admin = () => {
                 category: categories.length > 0 ? categories[0].name : '',
                 price: '',
                 image_url: '',
+                images: ['', ''],
                 is_new: false,
+                out_of_stock: false,
                 description: ''
             });
         }
@@ -911,14 +916,22 @@ const Admin = () => {
         setEditingProduct(null);
     };
 
-    const handleImageUpload = async (e) => {
+    const handleImageUpload = async (e, imageIndex = 0) => {
         const file = e.target.files[0];
         if (!file) return;
 
         setUploadingImage(true);
         try {
             const publicUrl = await uploadImage(file);
-            setFormData(prev => ({ ...prev, image_url: publicUrl }));
+            if (imageIndex === 0) {
+                setFormData(prev => ({ ...prev, image_url: publicUrl }));
+            } else {
+                setFormData(prev => {
+                    const newImages = [...(prev.images || ['', ''])];
+                    newImages[imageIndex - 1] = publicUrl;
+                    return { ...prev, images: newImages };
+                });
+            }
         } catch (error) {
             console.error("Error al subir imagen:", error);
             alert("Hubo un error al subir la imagen a Supabase.");
@@ -929,7 +942,12 @@ const Admin = () => {
 
     const handleSaveProduct = async (e) => {
         e.preventDefault();
-        const payload = { ...formData, price: parseFloat(formData.price) };
+        const cleanImages = (formData.images || []).filter(url => url && url.trim() !== '');
+        const payload = {
+            ...formData,
+            price: parseFloat(formData.price),
+            images: cleanImages
+        };
 
         try {
             if (editingProduct) {
@@ -2281,8 +2299,22 @@ const Admin = () => {
                                 </div>
                             </div>
 
+                            <div className="form-row">
+                                <div className="input-group" style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '4px' }}>
+                                    <input
+                                        type="checkbox"
+                                        id="outOfStock"
+                                        checked={formData.out_of_stock || false}
+                                        onChange={(e) => setFormData({ ...formData, out_of_stock: e.target.checked })}
+                                        style={{ width: '20px', height: '20px', accentColor: '#ef4444' }}
+                                    />
+                                    <label htmlFor="outOfStock" style={{ marginBottom: 0, cursor: 'pointer', color: formData.out_of_stock ? '#ef4444' : 'inherit', fontWeight: formData.out_of_stock ? '600' : 'normal' }}>🚫 Marcar como Agotado</label>
+                                </div>
+                            </div>
+
+                            {/* --- IMAGEN 1 (principal) --- */}
                             <div className="input-group">
-                                <label>URL de la Imagen</label>
+                                <label>Imagen Principal *</label>
                                 <div style={{ display: 'flex', gap: '12px' }}>
                                     <input
                                         type="text"
@@ -2291,26 +2323,58 @@ const Admin = () => {
                                         placeholder="Sube una imagen o pega un enlace (https://...)"
                                         style={{ flexGrow: 1 }}
                                     />
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        id="fileUpload"
-                                        style={{ display: 'none' }}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="btn btn-secondary d-flex align-center gap-sm"
-                                        style={{ padding: '0 16px', opacity: uploadingImage ? 0.7 : 1, cursor: uploadingImage ? 'not-allowed' : 'pointer' }}
-                                        onClick={() => document.getElementById('fileUpload').click()}
-                                        disabled={uploadingImage}
-                                    >
+                                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 0)} id="fileUpload0" style={{ display: 'none' }} />
+                                    <button type="button" className="btn btn-secondary d-flex align-center gap-sm" style={{ padding: '0 16px', opacity: uploadingImage ? 0.7 : 1, cursor: uploadingImage ? 'not-allowed' : 'pointer' }} onClick={() => document.getElementById('fileUpload0').click()} disabled={uploadingImage}>
                                         {uploadingImage ? <Loader size={18} className="spin" /> : <Upload size={18} />}
                                         {uploadingImage ? 'Subiendo...' : 'Subir'}
                                     </button>
                                 </div>
                                 {formData.image_url && (
-                                    <div style={{ marginTop: '12px', borderRadius: '8px', overflow: 'hidden', height: '120px', width: '120px', backgroundImage: `url(${formData.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}></div>
+                                    <div style={{ marginTop: '10px', borderRadius: '8px', overflow: 'hidden', height: '100px', width: '100px', backgroundImage: `url(${formData.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}></div>
+                                )}
+                            </div>
+
+                            {/* --- IMAGEN 2 --- */}
+                            <div className="input-group">
+                                <label style={{ color: '#6b7280' }}>Imagen 2 (opcional)</label>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <input
+                                        type="text"
+                                        value={(formData.images || ['', ''])[0]}
+                                        onChange={(e) => { const imgs = [...(formData.images || ['',''])]; imgs[0] = e.target.value; setFormData({ ...formData, images: imgs }); }}
+                                        placeholder="URL de la segunda imagen"
+                                        style={{ flexGrow: 1 }}
+                                    />
+                                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 1)} id="fileUpload1" style={{ display: 'none' }} />
+                                    <button type="button" className="btn btn-secondary d-flex align-center gap-sm" style={{ padding: '0 16px', opacity: uploadingImage ? 0.7 : 1, cursor: uploadingImage ? 'not-allowed' : 'pointer' }} onClick={() => document.getElementById('fileUpload1').click()} disabled={uploadingImage}>
+                                        {uploadingImage ? <Loader size={18} className="spin" /> : <Upload size={18} />}
+                                        {uploadingImage ? 'Subiendo...' : 'Subir'}
+                                    </button>
+                                </div>
+                                {(formData.images || [])[0] && (
+                                    <div style={{ marginTop: '10px', borderRadius: '8px', overflow: 'hidden', height: '100px', width: '100px', backgroundImage: `url(${(formData.images||[])[0]})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}></div>
+                                )}
+                            </div>
+
+                            {/* --- IMAGEN 3 --- */}
+                            <div className="input-group">
+                                <label style={{ color: '#6b7280' }}>Imagen 3 (opcional)</label>
+                                <div style={{ display: 'flex', gap: '12px' }}>
+                                    <input
+                                        type="text"
+                                        value={(formData.images || ['', ''])[1]}
+                                        onChange={(e) => { const imgs = [...(formData.images || ['',''])]; imgs[1] = e.target.value; setFormData({ ...formData, images: imgs }); }}
+                                        placeholder="URL de la tercera imagen"
+                                        style={{ flexGrow: 1 }}
+                                    />
+                                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 2)} id="fileUpload2" style={{ display: 'none' }} />
+                                    <button type="button" className="btn btn-secondary d-flex align-center gap-sm" style={{ padding: '0 16px', opacity: uploadingImage ? 0.7 : 1, cursor: uploadingImage ? 'not-allowed' : 'pointer' }} onClick={() => document.getElementById('fileUpload2').click()} disabled={uploadingImage}>
+                                        {uploadingImage ? <Loader size={18} className="spin" /> : <Upload size={18} />}
+                                        {uploadingImage ? 'Subiendo...' : 'Subir'}
+                                    </button>
+                                </div>
+                                {(formData.images || [])[1] && (
+                                    <div style={{ marginTop: '10px', borderRadius: '8px', overflow: 'hidden', height: '100px', width: '100px', backgroundImage: `url(${(formData.images||[])[1]})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: '#f3f4f6', border: '1px solid #e5e7eb' }}></div>
                                 )}
                             </div>
 

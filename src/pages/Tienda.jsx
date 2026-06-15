@@ -124,13 +124,18 @@ const Tienda = () => {
                                 <p>{t('shop.loading')}</p>
                             </div>
                         ) : filteredProducts.map((product) => (
-                            <div key={product.id} className="product-card store-card">
+                        <div key={product.id} className="product-card store-card" style={product.out_of_stock ? { opacity: 0.8 } : {}}>
                                 <Link to={`/producto/${product.id}`} className="product-image-link" style={{ display: 'block' }}>
                                     <div className="product-image-box" style={{ backgroundImage: `url(${product.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
-                                        {product.is_new && <div className="product-tag tag-new">{t('store.tagNew')}</div>}
-                                        <div className="card-overlay" onClick={(e) => e.preventDefault()}>
-                                            <button className="btn-icon circle-btn" onClick={(e) => { e.preventDefault(); addToCart(product); }}><ShoppingCart size={20} /></button>
-                                        </div>
+                                        {product.out_of_stock
+                                            ? <div className="product-tag" style={{ background: '#ef4444', color: '#fff' }}>Agotado</div>
+                                            : product.is_new && <div className="product-tag tag-new">{t('store.tagNew')}</div>
+                                        }
+                                        {!product.out_of_stock && (
+                                            <div className="card-overlay" onClick={(e) => e.preventDefault()}>
+                                                <button className="btn-icon circle-btn" onClick={(e) => { e.preventDefault(); addToCart(product); }}><ShoppingCart size={20} /></button>
+                                            </div>
+                                        )}
                                     </div>
                                 </Link>
                                 <div className="product-info">
@@ -140,7 +145,10 @@ const Tienda = () => {
                                     </Link>
                                     <div className="product-price-row">
                                         <span className="product-price">€{Number(product.price).toFixed(2)}</span>
-                                        <button className="add-to-cart-btn btn-sm" onClick={() => addToCart(product)}>{t('store.btnAdd')}</button>
+                                        {product.out_of_stock
+                                            ? <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: '600', padding: '6px 12px', border: '1px solid #fca5a5', borderRadius: '6px', background: '#fef2f2' }}>Sin stock</span>
+                                            : <button className="add-to-cart-btn btn-sm" onClick={() => addToCart(product)}>{t('store.btnAdd')}</button>
+                                        }
                                     </div>
                                 </div>
                             </div>
