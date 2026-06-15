@@ -1041,6 +1041,21 @@ a {
   transform: translateY(-2px);
 }
 
+/* Carrusel de imágenes en tarjeta de producto */
+.product-image-link-wrapper:hover .carousel-arrow {
+  opacity: 1 !important;
+}
+.carousel-arrow:hover {
+  background: rgba(255,255,255,1) !important;
+  transform: translateY(-50%) scale(1.1) !important;
+}
+@media (max-width: 768px) {
+  /* En móvil las flechas son siempre visibles para facilitar el uso táctil */
+  .carousel-arrow {
+    opacity: 0.8 !important;
+  }
+}
+
 .empty-state {
   text-align: center;
   padding: 80px 0;
