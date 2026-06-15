@@ -1440,6 +1440,12 @@ const Admin = () => {
                                 ) : (() => {
                                     // Local filter logic
                                     const filteredList = orders.filter(o => {
+                                        // Filtro defensivo: ocultar registros huérfanos de suscripciones
+                                        // (órdenes sin artículos que provienen de pagos de la Academia)
+                                        const hasItems = o.order_items && o.order_items.length > 0;
+                                        const hasRedsysOrderId = !!o.redsys_order_id;
+                                        if (!hasItems && !hasRedsysOrderId) return false;
+
                                         const matchesStatus = orderFilter === 'Todos' || o.status === orderFilter;
                                         const searchLower = searchQuery.toLowerCase();
                                         const matchesSearch = !searchLower || (
