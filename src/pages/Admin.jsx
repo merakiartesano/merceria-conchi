@@ -2193,7 +2193,13 @@ const Admin = () => {
                                                     type="checkbox"
                                                     checked={zone.is_active}
                                                     onChange={(e) => {
-                                                        const updated = { ...zone, is_active: e.target.checked };
+                                                        const newActive = e.target.checked;
+                                                        // Si se va a DESACTIVAR, pedir confirmación para evitar clics accidentales
+                                                        if (!newActive) {
+                                                            const ok = window.confirm(`⚠️ ¿Seguro que quieres DESACTIVAR los envíos a "${zone.name}"?\n\nLos clientes NO podrán hacer pedidos a esta zona hasta que la vuelvas a activar.`);
+                                                            if (!ok) return; // Cancelar: revertir el checkbox
+                                                        }
+                                                        const updated = { ...zone, is_active: newActive };
                                                         handleSaveShippingZone(zone.id, updated);
                                                     }}
                                                     style={{ width: '18px', height: '18px', accentColor: '#10b981' }}
