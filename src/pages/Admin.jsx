@@ -504,14 +504,24 @@ const Admin = () => {
             const kitMon = kitDate.getUTCMonth();
             const shipYear = shippingMonth.getFullYear();
             const shipMon = shippingMonth.getMonth();
-            // Incluir si period_end <= mes actual (casos legacy/canceladas vigentes)
+            // Caso 1: period_end <= mes de envío (casos legacy/canceladas vigentes y mes actual normal)
             const isPastOrCurrent = (kitYear < shipYear) || (kitYear === shipYear && kitMon <= shipMon);
-            // Incluir si period_end = mes siguiente al de envío
-            // (caso normal: cron cobra el día 5 y pone period_end al día 5 del mes siguiente)
+            if (isPastOrCurrent) return true;
+            // Caso 2: period_end = mes siguiente (el cron ya cobró el día 5 de ESTE mes y renovó el period_end)
+            // IMPORTANTE: verificar también que el último pago fue EN el mes de envío.
+            // Si last_payment_date es del mes anterior (suscriptor nuevo después del día 20),
+            // su kit pertenece al mes siguiente y NO debe aparecer en este PDF.
             const nextMon = (shipMon + 1) % 12;
             const nextYear = shipMon === 11 ? shipYear + 1 : shipYear;
-            const isNextMonth = kitYear === nextYear && kitMon === nextMon;
-            return isPastOrCurrent || isNextMonth;
+            const isNextPeriod = kitYear === nextYear && kitMon === nextMon;
+            if (isNextPeriod) {
+                const lastPaid = sub?.last_payment_date;
+                if (!lastPaid) return false;
+                const paidDate = new Date(lastPaid);
+                // El cron cobra el día 5 del mes de envío → last_payment_date está en ese mes
+                return paidDate.getUTCFullYear() === shipYear && paidDate.getUTCMonth() === shipMon;
+            }
+            return false;
         };
 
         const isCancelledValid = (u) => {
@@ -630,14 +640,21 @@ const Admin = () => {
             const kitMon = kitDate.getUTCMonth();
             const shipYear = shippingMonth2.getFullYear();
             const shipMon = shippingMonth2.getMonth();
-            // Incluir si period_end <= mes actual (casos legacy/canceladas vigentes)
+            // Caso 1: period_end <= mes de envío (casos legacy/canceladas vigentes y mes actual normal)
             const isPastOrCurrent = (kitYear < shipYear) || (kitYear === shipYear && kitMon <= shipMon);
-            // Incluir si period_end = mes siguiente al de envío
-            // (caso normal: cron cobra el día 5 y pone period_end al día 5 del mes siguiente)
+            if (isPastOrCurrent) return true;
+            // Caso 2: period_end = mes siguiente (el cron ya cobró el día 5 de ESTE mes y renovó el period_end)
+            // IMPORTANTE: verificar también que el último pago fue EN el mes de envío.
             const nextMon2 = (shipMon + 1) % 12;
             const nextYear2 = shipMon === 11 ? shipYear + 1 : shipYear;
-            const isNextMonth2 = kitYear === nextYear2 && kitMon === nextMon2;
-            return isPastOrCurrent || isNextMonth2;
+            const isNextPeriod2 = kitYear === nextYear2 && kitMon === nextMon2;
+            if (isNextPeriod2) {
+                const lastPaid = sub?.last_payment_date;
+                if (!lastPaid) return false;
+                const paidDate = new Date(lastPaid);
+                return paidDate.getUTCFullYear() === shipYear && paidDate.getUTCMonth() === shipMon;
+            }
+            return false;
         };
 
         const isCancelledValid2 = (u) => {
