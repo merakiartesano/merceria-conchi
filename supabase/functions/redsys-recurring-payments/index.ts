@@ -165,24 +165,16 @@ Deno.serve(async (req) => {
 
     const results = [];
 
-    // ─── Procesamiento por LOTES para evitar el antifraude de Redsys ─────────────
-    // Redsys detecta demasiadas transacciones COF seguidas y las bloquea (código 9334).
-    // Solución: lotes de 5 cobros con 20s entre cada transacción y 90s de pausa entre lotes.
-    const BATCH_SIZE = 5;
-    const DELAY_BETWEEN_TXN_MS  = 20000; // 20 segundos entre cobros dentro de un lote
-    const DELAY_BETWEEN_BATCH_MS = 90000; // 90 segundos de pausa entre lotes
+    // ─── Procesamiento con pausa entre cobros para evitar el antifraude de Redsys ──
+    // Con el plan Free de Supabase el timeout es ~150s, así que usamos 15s por transacción.
+    // 15s × N cobros: para 9 alumnas → ~135s (dentro del límite).
+    // 15s es suficiente para no disparar las reglas de velocidad de Redsys.
+    const DELAY_BETWEEN_TXN_MS = 15000; // 15 segundos entre cada cobro
 
     for (let i = 0; i < subsWithProfiles.length; i++) {
       const sub = subsWithProfiles[i];
-      const isFirstInBatch = i % BATCH_SIZE === 0;
-      const isStartOfNewBatch = i > 0 && isFirstInBatch;
 
-      if (isStartOfNewBatch) {
-        // Pausa larga entre lotes
-        console.log(`⏸️ Fin de lote ${Math.floor(i / BATCH_SIZE)}. Pausando ${DELAY_BETWEEN_BATCH_MS / 1000}s antes del siguiente lote...`);
-        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCH_MS));
-      } else if (i > 0) {
-        // Pausa entre transacciones del mismo lote
+      if (i > 0) {
         console.log(`⏳ Esperando ${DELAY_BETWEEN_TXN_MS / 1000}s antes del cobro ${i + 1}/${subsWithProfiles.length}...`);
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_TXN_MS));
       }
