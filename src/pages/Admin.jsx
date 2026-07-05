@@ -1457,8 +1457,10 @@ const Admin = () => {
                                 ) : (() => {
                                     // Local filter logic
                                     const filteredList = orders.filter(o => {
-                                        // Filtro defensivo: ocultar registros huérfanos de suscripciones
-                                        // (órdenes sin artículos que provienen de pagos de la Academia)
+                                        // Filtro defensivo: ocultar registros de renovaciones de la Academia
+                                        // (se guardan en orders solo para auditoría, no son pedidos de tienda)
+                                        if (o.is_academy_renewal === true) return false;
+                                        // Ocultar también registros huérfanos sin artículos ni id Redsys
                                         const hasItems = o.order_items && o.order_items.length > 0;
                                         const hasRedsysOrderId = !!o.redsys_order_id;
                                         if (!hasItems && !hasRedsysOrderId) return false;

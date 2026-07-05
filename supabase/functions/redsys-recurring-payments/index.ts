@@ -125,16 +125,17 @@ Deno.serve(async (req) => {
   try {
     // 1. Obtener precio del Club
     const { data: settings } = await supabaseAdmin.from("academy_settings").select("subscription_price").eq("id", 1).single();
-    const price = parseFloat(settings?.subscription_price || "50.0");
+    const price = parseFloat(settings?.subscription_price || "39.0");
     const amountCents = Math.round(price * 100).toString();
 
-    // 2. Buscar suscripciones activas expiradas
-    const now = new Date().toISOString();
+    // 2. Buscar suscripciones activas que venzan HOY o antes (fin del día UTC)
+    const now = new Date();
+    const endOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
     const { data: expiredSubs, error: subsError } = await supabaseAdmin
       .from("subscriptions")
       .select("*")
       .eq("status", "active")
-      .lte("current_period_end", now)
+      .lte("current_period_end", endOfToday.toISOString())
       .not("redsys_identifier", "is", null);
 
     if (subsError) throw subsError;
@@ -164,8 +165,29 @@ Deno.serve(async (req) => {
 
     const results = [];
 
-    for (const sub of subsWithProfiles) {
-      // Evitar órdenes duplicadas en el mismo día si algo falla
+    // ─── Procesamiento por LOTES para evitar el antifraude de Redsys ─────────────
+    // Redsys detecta demasiadas transacciones COF seguidas y las bloquea (código 9334).
+    // Solución: lotes de 5 cobros con 20s entre cada transacción y 90s de pausa entre lotes.
+    const BATCH_SIZE = 5;
+    const DELAY_BETWEEN_TXN_MS  = 20000; // 20 segundos entre cobros dentro de un lote
+    const DELAY_BETWEEN_BATCH_MS = 90000; // 90 segundos de pausa entre lotes
+
+    for (let i = 0; i < subsWithProfiles.length; i++) {
+      const sub = subsWithProfiles[i];
+      const isFirstInBatch = i % BATCH_SIZE === 0;
+      const isStartOfNewBatch = i > 0 && isFirstInBatch;
+
+      if (isStartOfNewBatch) {
+        // Pausa larga entre lotes
+        console.log(`⏸️ Fin de lote ${Math.floor(i / BATCH_SIZE)}. Pausando ${DELAY_BETWEEN_BATCH_MS / 1000}s antes del siguiente lote...`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCH_MS));
+      } else if (i > 0) {
+        // Pausa entre transacciones del mismo lote
+        console.log(`⏳ Esperando ${DELAY_BETWEEN_TXN_MS / 1000}s antes del cobro ${i + 1}/${subsWithProfiles.length}...`);
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_TXN_MS));
+      }
+
+      // Número de pedido único: prefijo RENEW + timestamp parcial + fragmento del user_id
       const orderId = `RENEW${String(Date.now()).substring(5)}${sub.id.substring(0, 4)}`.substring(0, 12);
 
       const params = {
@@ -174,17 +196,17 @@ Deno.serve(async (req) => {
         DS_MERCHANT_MERCHANTCODE: merchantCode,
         DS_MERCHANT_TERMINAL: terminal,
         DS_MERCHANT_CURRENCY: "978",
-        DS_MERCHANT_TRANSACTIONTYPE: "0", // Autorización estándar
+        DS_MERCHANT_TRANSACTIONTYPE: "0",
         DS_MERCHANT_IDENTIFIER: sub.redsys_identifier,
         DS_MERCHANT_DIRECTPAYMENT: "true",
-        DS_MERCHANT_COF_INI: "N", // Operación sucesiva (no inicial)
-        DS_MERCHANT_COF_TYPE: "R", // Tipo Recurrente
-        DS_MERCHANT_EXCEP_SCA: "MIT" // CLAVE: Merchant Initiated Transaction (obligatorio para cobros automáticos REST)
+        DS_MERCHANT_COF_INI: "N",   // Operación sucesiva (no inicial)
+        DS_MERCHANT_COF_TYPE: "R",  // Tipo Recurrente
+        DS_MERCHANT_EXCEP_SCA: "MIT" // Merchant Initiated Transaction
       };
 
-        const paramsJson = JSON.stringify(params);
-        const paramsB64 = encodeBase64Standard(paramsJson);
-        const signature = generateRedsysSignatureREST(secretKey, paramsB64, orderId);
+      const paramsJson = JSON.stringify(params);
+      const paramsB64 = encodeBase64Standard(paramsJson);
+      const signature = generateRedsysSignatureREST(secretKey, paramsB64, orderId);
 
       try {
         const response = await fetch(endpoint, {
@@ -198,12 +220,11 @@ Deno.serve(async (req) => {
         });
 
         const resData = await response.json();
-        
+
         if (resData.errorCode) {
           throw new Error(`Redsys error code: ${resData.errorCode}`);
         }
 
-        // Decodificar respuesta de Redsys
         const resParamsB64 = resData.Ds_MerchantParameters;
         if (!resParamsB64) {
           throw new Error(`No Ds_MerchantParameters in response: ${JSON.stringify(resData)}`);
@@ -217,20 +238,21 @@ Deno.serve(async (req) => {
 
         if (isSuccess) {
           console.log(`✅ Cobro exitoso para sub ${sub.id}. Pedido: ${orderId}`);
-          
-          // Ampliar al día 20 del mes siguiente para cobro unificado (UTC)
+
+          // 1 pago = 1 kit · period_end = día 5 del mes siguiente (UTC)
           const refNow = new Date();
-          const nextPeriod = new Date(Date.UTC(refNow.getUTCFullYear(), refNow.getUTCMonth() + 1, 20, 23, 59, 59, 999));
+          const nextPeriod = new Date(Date.UTC(refNow.getUTCFullYear(), refNow.getUTCMonth() + 1, 5, 23, 59, 59, 999));
 
           await supabaseAdmin.from("subscriptions").update({
             current_period_end: nextPeriod.toISOString(),
             last_payment_date: now,
-            last_payment_status: 'success'
+            last_payment_status: "success"
           }).eq("id", sub.id);
 
-          // Crear pedido en la tabla orders para que Conchi lo vea
+          // Registrar el cobro de renovación en la tabla orders (solo para auditoría/historial)
+          // La columna is_academy_renewal permite filtrarlo en el panel de Pedidos de tienda
           await supabaseAdmin.from("orders").insert({
-            status: 'Pagado',
+            status: "Pagado",
             total_amount: price,
             customer_email: sub.profiles?.email,
             customer_name: sub.profiles?.full_name,
@@ -240,8 +262,8 @@ Deno.serve(async (req) => {
 
           // Email de confirmación de renovación al alumno
           if (sub.profiles?.email) {
-            const nextRenewalStr = `20/${(nextPeriod.getUTCMonth() + 1).toString().padStart(2, '0')}/${nextPeriod.getUTCFullYear()}`;
-            const firstName = sub.profiles.first_name || sub.profiles.full_name?.split(' ')[0] || 'alumna';
+            const nextRenewalStr = `20/${(nextPeriod.getUTCMonth() + 1).toString().padStart(2, "0")}/${nextPeriod.getUTCFullYear()}`;
+            const firstName = sub.profiles.first_name || sub.profiles.full_name?.split(" ")[0] || "alumna";
             await sendEmail(
               sub.profiles.email,
               `✅ Tu suscripción al Club Meraki ArteSano ha sido renovada`,
@@ -250,32 +272,34 @@ Deno.serve(async (req) => {
           }
 
           results.push(`✅ ${sub.user_id}: Success`);
+
         } else {
           console.error(`❌ Cobro fallido para sub ${sub.id}. Código: ${responseCode}`);
-          
+
           await supabaseAdmin.from("subscriptions").update({
-            status: 'past_due',
-            last_payment_status: 'failed',
+            status: "past_due",
+            last_payment_status: "failed",
             last_payment_error: `Error Redsys: ${responseCode}`
           }).eq("id", sub.id);
 
-          // Email de aviso al alumno
           if (sub.profiles?.email) {
             await sendEmail(
               sub.profiles.email,
               "⚠️ Problema con tu suscripción al Club Meraki ArteSano",
-              `<p>Hola,</p><p>No hemos podido procesar el cobro mensual de tu suscripción al Club. 
-               Por favor, accede a <a href="https://merakiartesano.es/academia">tu cuenta</a> para actualizar tu método de pago y seguir disfrutando de las clases.</p>`
+              `<p>Hola,</p><p>No hemos podido procesar el cobro mensual de tu suscripción al Club. ` +
+              `Por favor, accede a <a href="https://merakiartesano.es/academia">tu cuenta</a> para actualizar tu método de pago y seguir disfrutando de las clases.</p>`
             );
           }
 
           results.push(`❌ ${sub.user_id}: Failed (${responseCode})`);
         }
+
       } catch (err) {
         console.error(`Error procesando sub ${sub.id}:`, err);
         results.push(`❌ ${sub.user_id}: Error procesando - ${err?.message || String(err)}`);
       }
-    }
+
+    } // fin del for
 
     return new Response(JSON.stringify({ processed: expiredSubs.length, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
